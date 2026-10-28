@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Book a Hall – LHAS</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header"><div class="sidebar-logo"><i class="fas fa-university"></i><span>LHAS</span></div></div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">My Schedule</div>
+          <a href="lecturer-timetable.html" class="nav-link"><i class="fas fa-calendar-alt"></i> My Timetable</a>
+          <a href="book-hall.html" class="nav-link active"><i class="fas fa-calendar-plus"></i> Book a Hall</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Account</div>
+          <a href="#" class="nav-link" data-logout><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+      </nav>
+      <div class="sidebar-footer"><div class="user-info"><div class="user-avatar"></div><div class="user-meta"><div class="name"></div><div class="role"></div></div></div></div>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <h1 class="page-title">Book a Lecture Hall</h1>
+        </div>
+        <div class="topbar-right"><button class="icon-btn" title="Notifications"><i class="fas fa-bell"></i></button></div>
+      </header>
+
+      <main class="content-area">
+        <div class="alert alert-info mb-2">
+          <i class="fas fa-info-circle"></i> A booking request is not final. An administrator reviews it and you will be notified. Requests must be made at least 24 hours ahead and not more than 30 days ahead.
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><h2 id="formTitle"><i class="fas fa-calendar-plus"></i> Request a Hall</h2></div>
+            <div class="card-body">
+              <form id="bookForm" novalidate>
+                <div class="form-group">
+                  <label for="classSelect">Class / Subject *</label>
+                  <select id="classSelect" required><option value="">Select one of your classes</option></select>
+                </div>
+                <div class="form-group">
+                  <label for="purpose">Purpose *</label>
+                  <select id="purpose">
+                    <option>Regular lecture</option>
+                    <option>Extra lecture</option>
+                    <option>Replacement lecture</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="bookDate">Date *</label>
+                  <input type="date" id="bookDate" required />
+                </div>
+                <div class="form-row" style="gap: 1rem;">
+                  <div class="form-group" style="flex:1;">
+                    <label for="startTime">Start Time *</label>
+                    <input type="time" id="startTime" required />
+                  </div>
+                  <div class="form-group" style="flex:1;">
+                    <label for="endTime">End Time *</label>
+                    <input type="time" id="endTime" required />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="students">Expected Students *</label>
+                  <input type="number" id="students" min="1" required />
+                </div>
+                <div class="form-group">
+                  <label for="equipment">Required Equipment</label>
+                  <input type="text" id="equipment" placeholder="e.g. Projector, Whiteboard" />
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="btnFind"><i class="fas fa-search"></i> Find Suitable Halls</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h2><i class="fas fa-door-open"></i> Choose a Hall</h2></div>
+            <div class="card-body">
+              <div id="hallArea">
+                <div class="empty-state"><i class="fas fa-door-open"></i><p>Fill in the form and click Find Suitable Halls. You can pick a hall or let the administrator choose the best match.</p></div>
+              </div>
+              <div class="flex gap-2 mt-2 hidden" id="submitRow">
+                <button class="btn btn-success" id="btnSubmit"><i class="fas fa-paper-plane"></i> Submit Request</button>
+                <button class="btn btn-secondary" id="btnReset" type="button">Clear</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-2">
+          <div class="card-header"><h2>My Booking Requests</h2></div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table>
+                <thead><tr><th>ID</th><th>Class</th><th>Date and Time</th><th>Purpose</th><th>Hall</th><th>Status</th><th>Admin note</th><th>Actions</th></tr></thead>
+                <tbody id="myBookings"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const session = LHAS.requireAuth(['lecturer']);
+      if (!session) return;
+      LHAS.initLayout(session);
+
+      const $ = id => document.getElementById(id);
+      const esc = LHAS.esc;
+      let editingId = null;
+      let draft = null;
+      let subjects = [];
+
+      const call = async (method, url, body) => {
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+        const data = await res.json().catch(() => ({}));
+        return { ok: res.ok, status: res.status, data };
+      };
+      const localDate = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const defaultDate = () => localDate(new Date(Date.now() + 2 * 86400000));
+
+      // The lecturer's own classes only (BR-11)
+      const sr = await call('GET', '/api/bookings/my-subjects');
+      subjects = sr.ok ? sr.data : [];
+      subjects.forEach(s => {
+        const o = document.createElement('option');
+        o.value = s.id; o.textContent = `${s.subject_code} – ${s.subject_name}`;
+        $('classSelect').appendChild(o);
+      });
+      if (!subjects.length) LHAS.showToast('No classes are assigned to you yet. Ask the administrator.', 'warning');
+
+      $('bookDate').min = localDate(new Date(Date.now() + 86400000));
+      $('bookDate').value = defaultDate();
+      $('classSelect').addEventListener('change', () => {
+        const s = subjects.find(x => x.id === parseInt($('classSelect').value));
+        if (s) $('equipment').value = (s.required_equipment || []).join(', ');
+      });
+
+      const readForm = () => ({
+        subject_id: parseInt($('classSelect').value) || 0,
+        purpose: $('purpose').value,
+        date: $('bookDate').value,
+        start_time: $('startTime').value,
+        end_time: $('endTime').value,
+        students: parseInt($('students').value) || 0,
+        equipment: $('equipment').value.split(',').map(x => x.trim()).filter(Boolean)
+      });
+
+      $('bookForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const f = readForm();
+        if (!f.subject_id || !f.date || !f.start_time || !f.end_time || !f.students) {
+          LHAS.showToast('Please fill all required fields', 'error'); return;
+        }
+        $('btnFind').disabled = true;
+        const r = await call('POST', '/api/bookings/suggest', { ...f, booking_id: editingId });
+        $('btnFind').disabled = false;
+        if (!r.ok) { LHAS.showToast(r.data.message || 'Could not find halls', 'error'); return; }
+        draft = f;
+
+        const suitable = r.data.suggestions.filter(x => x.score < 9999);
+        const unsuitable = r.data.suggestions.filter(x => x.score >= 9999);
+        const area = $('hallArea');
+        if (!suitable.length) {
+          draft = null;
+          $('submitRow').classList.add('hidden');
+          area.innerHTML = `<div class="alert alert-warning"><strong><i class="fas fa-exclamation-triangle"></i> No suitable hall found</strong><br>No hall meets capacity, equipment, status and availability for this slot. Try a different time.</div>
+            <div class="suggestion-list mt-2">${unsuitable.slice(0, 4).map(x => `<div class="suggestion-card unsuitable"><div class="suggestion-info"><h4>${esc(x.hall.name)}</h4><p class="text-danger" style="font-size:.8rem;">${esc(x.reasons.join('; '))}</p></div></div>`).join('')}</div>`;
+          return;
+        }
+        area.innerHTML = `<p class="text-muted mb-2" style="font-size:.85rem;">${suitable.length} suitable hall(s) found.</p><div class="suggestion-list">
+          <label class="suggestion-card hall-choice"><input type="radio" name="hall" value="" checked /><div class="suggestion-info"><h4>Any suitable hall</h4><p class="text-muted" style="font-size:.8rem;">The administrator assigns the best match.</p></div></label>
+          ${suitable.map((x, i) => `<label class="suggestion-card hall-choice"><input type="radio" name="hall" value="${x.hall.id}" /><div class="suggestion-info"><h4>${i === 0 ? '<span class="rank-badge">Best</span> ' : ''}${esc(x.hall.name)}</h4><div class="suggestion-meta"><span><i class="fas fa-users"></i> Capacity ${x.hall.capacity}</span><span><i class="fas fa-tools"></i> ${esc((x.hall.equipment || []).join(', '))}</span></div></div></label>`).join('')}</div>`;
+        $('submitRow').classList.remove('hidden');
+      });
+
+      $('btnSubmit').addEventListener('click', async () => {
+        if (!draft) return;
+        const choice = document.querySelector('input[name="hall"]:checked');
+        const body = { ...draft, hall_id: choice && choice.value ? parseInt(choice.value) : null };
+        $('btnSubmit').disabled = true;
+        const r = editingId ? await call('PUT', `/api/bookings/${editingId}`, body) : await call('POST', '/api/bookings', body);
+        $('btnSubmit').disabled = false;
+        if (!r.ok) { LHAS.showToast(r.data.message || 'Could not save the request', 'error'); return; }
+        LHAS.showToast(r.data.message || 'Saved');
+        clearForm();
+        load();
+      });
+
+      function clearForm() {
+        editingId = null; draft = null;
+        $('bookForm').reset();
+        $('bookDate').value = defaultDate();
+        $('formTitle').innerHTML = '<i class="fas fa-calendar-plus"></i> Request a Hall';
+        $('submitRow').classList.add('hidden');
+        $('hallArea').innerHTML = '<div class="empty-state"><i class="fas fa-door-open"></i><p>Fill in the form and click Find Suitable Halls.</p></div>';
+      }
+      $('btnReset').addEventListener('click', clearForm);
+
+      const statusClass = s => s === 'pending' ? 'status-pending' : s === 'approved' ? 'status-confirmed' : 'status-cancelled';
+      const fmtDate = d => String(d).slice(0, 10).split('-').reverse().join('/');
+
+      async function load() {
+        const r = await call('GET', '/api/bookings');
+        const rows = r.ok ? r.data : [];
+        const tbody = $('myBookings');
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>You have not made any booking requests yet.</p></div></td></tr>';
+          return;
+        }
+        tbody.innerHTML = '';
+        rows.forEach(b => {
+          const actions = b.status === 'pending'
+            ? `<button class="btn btn-sm btn-outline" data-edit="${b.id}" title="Edit"><i class="fas fa-pen"></i></button> <button class="btn btn-sm btn-outline" data-cancel="${b.id}" title="Cancel"><i class="fas fa-times"></i></button>`
+            : b.status === 'approved' ? `<button class="btn btn-sm btn-outline" data-cancel="${b.id}" title="Cancel"><i class="fas fa-times"></i></button>` : '—';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>#${b.id}</td>
+            <td><strong>${esc(b.subject_code)}</strong><br><span class="text-muted" style="font-size:.75rem">${esc(b.subject_name)}</span></td>
+            <td>${fmtDate(b.booking_date)}<br><span class="text-muted">${String(b.start_time).slice(0, 5)} - ${String(b.end_time).slice(0, 5)}</span></td>
+            <td>${esc(b.purpose)}</td>
+            <td>${esc(b.hall_name || 'Any suitable')}</td>
+            <td><span class="status ${statusClass(b.status)}">${esc(b.status)}</span></td>
+            <td>${esc(b.review_reason) || '—'}</td>
+            <td>${actions}</td>`;
+          tr._booking = b;
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => {
+          const b = btn.closest('tr')._booking;
+          editingId = b.id;
+          $('classSelect').value = b.subject_id;
+          $('purpose').value = b.purpose;
+          $('bookDate').value = String(b.booking_date).slice(0, 10);
+          $('startTime').value = String(b.start_time).slice(0, 5);
+          $('endTime').value = String(b.end_time).slice(0, 5);
+          $('students').value = b.students;
+          $('equipment').value = (b.equipment || []).join(', ');
+          $('formTitle').innerHTML = '<i class="fas fa-pen"></i> Edit Request #' + b.id;
+          $('hallArea').innerHTML = '<div class="empty-state"><p>Click Find Suitable Halls again to confirm the hall for the updated request.</p></div>';
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }));
+
+        tbody.querySelectorAll('[data-cancel]').forEach(btn => btn.addEventListener('click', async () => {
+          const b = btn.closest('tr')._booking;
+          let reason = '';
+          if (b.status === 'approved') {
+            reason = (prompt('Reason for cancelling this approved booking:') || '').trim();
+            if (!reason) { LHAS.showToast('A reason is required to cancel an approved booking', 'error'); return; }
+          } else if (!confirm('Cancel this booking request?')) return;
+          const r = await call('POST', `/api/bookings/${b.id}/cancel`, { reason });
+          if (!r.ok) { LHAS.showToast(r.data.message || 'Could not cancel', 'error'); return; }
+          LHAS.showToast('Booking cancelled');
+          load();
+        }));
+      }
+      load();
+    });
+  </script>
+</body>
+</html>
