@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hall Allocation – LHAS</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo"><i class="fas fa-university"></i><span>LHAS</span></div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Main</div>
+          <a href="dashboard.html" class="nav-link"><i class="fas fa-th-large"></i> Dashboard</a>
+          <a href="halls.html" class="nav-link"><i class="fas fa-door-open"></i> Lecture Halls</a>
+          <a href="classes.html" class="nav-link"><i class="fas fa-book"></i> Classes & Subjects</a>
+          <a href="allocation.html" class="nav-link active"><i class="fas fa-calendar-check"></i> Hall Allocation</a>
+          <a href="timetable.html" class="nav-link"><i class="fas fa-calendar-alt"></i> Timetable</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Reports</div>
+          <a href="reports.html" class="nav-link"><i class="fas fa-chart-bar"></i> Usage Reports</a>
+          <a href="history.html" class="nav-link"><i class="fas fa-history"></i> Allocation History</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">System</div>
+          <a href="users.html" class="nav-link"><i class="fas fa-users"></i> Users</a>
+          <a href="#" class="nav-link" data-logout><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">SA</div>
+          <div class="user-meta"><div class="name">System Admin</div><div class="role">Admin</div></div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <h1 class="page-title">Hall Allocation</h1>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="grid-2">
+          <!-- Request Form -->
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-search"></i> Request Hall Suggestion</h2>
+            </div>
+            <div class="card-body">
+              <form id="suggestForm">
+                <div class="form-group">
+                  <label for="subjectSelect">Class / Subject *</label>
+                  <select id="subjectSelect" required>
+                    <option value="">Select a class</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="students">Expected Students *</label>
+                  <input type="number" id="students" min="1" required />
+                </div>
+                <div class="form-group">
+                  <label for="allocDate">Date *</label>
+                  <input type="date" id="allocDate" required />
+                </div>
+                <div class="form-row" style="gap: 1rem;">
+                  <div class="form-group" style="flex:1; margin-bottom:0;">
+                    <label for="startTime">Start Time *</label>
+                    <input type="time" id="startTime" required />
+                  </div>
+                  <div class="form-group" style="flex:1; margin-bottom:0;">
+                    <label for="endTime">End Time *</label>
+                    <input type="time" id="endTime" required />
+                  </div>
+                </div>
+                <div class="form-group mt-2">
+                  <label for="equipment">Required Equipment</label>
+                  <input type="text" id="equipment" placeholder="e.g. Projector, Whiteboard" />
+                </div>
+                <button type="submit" class="btn btn-primary btn-block mt-2">
+                  <i class="fas fa-magic"></i> Get Suggestions
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Suggestions -->
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-list-ul"></i> Suggested Halls</h2>
+            </div>
+            <div class="card-body">
+              <div id="suggestionArea">
+                <div class="empty-state">
+                  <i class="fas fa-door-open"></i>
+                  <p>Select a class and request suggestions to see suitable halls ranked by capacity, equipment & availability.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Confirm Panel (hidden until selection) -->
+        <div class="card mt-2 hidden" id="confirmPanel">
+          <div class="card-header">
+            <h2><i class="fas fa-check-double"></i> Confirm Allocation</h2>
+          </div>
+          <div class="card-body">
+            <div id="confirmSummary" style="background:#f8fafc; border-radius:8px; padding:1rem; margin-bottom:1rem;"></div>
+            <div class="flex gap-2">
+              <button class="btn btn-success" id="btnConfirm"><i class="fas fa-check"></i> Confirm Allocation</button>
+              <button class="btn btn-secondary" id="btnCancelConfirm">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Current Allocations -->
+        <div class="card mt-2">
+          <div class="card-header">
+            <h2 id="allocationSectionTitle">Current Allocations</h2>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Subject</th>
+                    <th>Hall</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Status</th>
+                    <th id="actionsHeader">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="allocTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const session = LHAS.requireAuth(['admin']);
+      if (!session) return;
+
+      LHAS.initLayout(session);
+
+      const isLecturer = session.role === 'lecturer';
+
+      // Change the bottom section for lecturers.
+      if (isLecturer) {
+        document.getElementById('allocationSectionTitle').textContent =
+          'My Allocations';
+
+        // Hide the Actions column.
+        document.getElementById('actionsHeader').style.display = 'none';
+
+        // Lecturers cannot use admin confirmation actions.
+        document.getElementById('confirmPanel').querySelectorAll('button')
+          .forEach(button => {
+            button.textContent = button.id === 'btnConfirm'
+              ? 'Submit Request'
+              : 'Cancel';
+          });
+
+        document.querySelector('#confirmPanel h2').innerHTML =
+          '<i class="fas fa-paper-plane"></i> Submit Hall Request';
+      }
+
+      let selectedHall = null;
+      let currentRequest = null;
+
+      // Populate classes
+      let subjectsJ;
+
+      try {
+        subjectsJ = await fetch('/api/admin/subjects', {
+          credentials: 'include'
+        });
+      } catch (error) {
+        console.error('Failed to load subjects:', error);
+        LHAS.showToast('Unable to connect to the server', 'error');
+        return;
+      }
+
+      if (!subjectsJ.ok) {
+        LHAS.showToast('Failed to load subjects', 'error');
+        return;
+      }
+
+      const subjects = await subjectsJ.json();
+
+      const subjectSelect = document.getElementById('subjectSelect');
+      subjects.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `${s.subject_code} – ${s.subject_name}`;
+        subjectSelect.appendChild(opt);
+      });
+
+      subjectSelect.addEventListener('change', () => {
+        const c = LHAS.getClass(parseInt(subjectSelect.value));
+        if (c) {
+          document.getElementById('students').value = "";
+          document.getElementById('equipment').value = "";
+        }
+      });
+
+      let allocations = []
+
+      async function renderAllocations() {
+        const allocationsUrl = '/api/admin/allocations';
+
+        let allocationsJ;
+
+        try {
+          allocationsJ = await fetch(allocationsUrl, {
+            credentials: 'include'
+          });
+        } catch (error) {
+          console.error('Failed to load allocations:', error);
+          LHAS.showToast('Unable to connect to the server', 'error');
+          return;
+        }
+
+        if (!allocationsJ.ok) {
+          LHAS.showToast('Failed to load allocations', 'error');
+          return;
+        }
+
+        allocations = await allocationsJ.json();
+        const tbody = document.getElementById('allocTable');
+        tbody.innerHTML = '';
+        allocations.forEach(a => {
+
+          const tr = document.createElement('tr');
+
+          tr.innerHTML = `
+            <td><strong>${a.subject || '—'}</strong></td>
+            <td>${a.hall || '—'}</td>
+            <td>${a.date ? String(a.date).slice(0, 10).split('-').reverse().join('/') : '—'}</td>
+            <td>${(a.start_time || '').slice(0, 5)} - ${(a.end_time || '').slice(0, 5)}</td>
+            <td><span class="status status-${a.status}">${a.status}</span></td>
+            ${isLecturer ? '' : `
+              <td>
+                ${a.status === 'pending' ? `
+                  <button class="btn btn-sm btn-success" data-confirm="${a.id}" title="Confirm">
+                    <i class="fas fa-check"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline" data-cancel="${a.id}" title="Cancel">
+                    <i class="fas fa-times"></i>
+                  </button>
+                ` : a.status === 'confirmed' ? `
+                  <button class="btn btn-sm btn-outline" data-cancel="${a.id}" title="Cancel">
+                    <i class="fas fa-times"></i>
+                  </button>
+                ` : '—'}
+              </td>
+            `}
+          `;
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll('[data-cancel]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+
+            const allocation = allocations.find(
+              a => a.id === parseInt(btn.dataset.cancel)
+            );
+
+            if (allocation && confirm('Cancel this allocation? The hall will become available again.')) {
+              const reason = prompt('Reason for cancelling this allocation:', 'Cancelled by administrator');
+              if (!reason || !reason.trim()) { LHAS.showToast('A reason is required to cancel an allocation', 'error'); return; }
+              allocation.status = 'cancelled';
+              allocation.cancellation_reason = reason.trim();
+              const response = await fetch('/api/admin/updateAllocations', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify(allocation)
+              });
+
+              if (!response.ok) {
+                LHAS.showToast((await response.json().catch(() => ({}))).message || 'Failed to cancel allocation', 'error');
+                return;
+              }
+
+              LHAS.showToast('Allocation cancelled');
+              renderAllocations();
+            }
+          });
+        });
+
+        tbody.querySelectorAll('[data-confirm]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+
+            const allocation = allocations.find(
+              a => a.id === parseInt(btn.dataset.confirm)
+            );
+
+            if (allocation && confirm('Confirm this allocation?')) {
+              allocation.status = 'confirmed';
+              const response = await fetch('/api/admin/updateAllocations', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify(allocation)
+              });
+
+              if (!response.ok) {
+                LHAS.showToast((await response.json().catch(() => ({}))).message || 'Failed to confirm allocation', 'error');
+                return;
+              }
+
+              LHAS.showToast('Allocation confirmed');
+              renderAllocations();
+            }
+          });
+        });
+      }
+
+      document.getElementById('suggestForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const classId = parseInt(subjectSelect.value);
+        const students = parseInt(document.getElementById('students').value);
+        const date = document.getElementById('allocDate').value;
+        const start = document.getElementById('startTime').value;
+        const end = document.getElementById('endTime').value;
+        const equipment = document.getElementById('equipment').value.split(',').map(x => x.trim()).filter(Boolean);
+
+        if (!classId || !students || !date || !start || !end) {
+          LHAS.showToast('Please fill all required fields', 'error');
+          return;
+        }
+
+        if (end <= start) {
+          LHAS.showToast('End time must be later than start time', 'error');
+          return;
+        }
+
+        let response;
+
+        try {
+          response = await fetch('/api/admin/hallSuggestions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              students: students,
+              equipment: equipment,
+              date: date,
+              start_time: start,
+              end_time: end
+            })
+          });
+        } catch (error) {
+          console.error('Hall suggestion request failed:', error);
+          LHAS.showToast('Unable to connect to the server', 'error');
+          return;
+        }
+
+        if (!response.ok) {
+          LHAS.showToast('Failed to get hall suggestions', 'error');
+          return;
+        }
+
+        const data = await response.json();
+        const suggestions = data.suggestions;
+
+        currentRequest = { classId, students, date, start, end, equipment };
+        selectedHall = null;
+        document.getElementById('confirmPanel').classList.add('hidden');
+
+        const results = suggestions;
+        const area = document.getElementById('suggestionArea');
+        area.innerHTML = '';
+
+        const suitable = results.filter(r => r.score < 9999);
+        const unsuitable = results.filter(r => r.score >= 9999);
+
+        if (!suitable.length) {
+          area.innerHTML = `
+            <div class="alert alert-warning">
+              <strong><i class="fas fa-exclamation-triangle"></i> No suitable hall found</strong><br>
+              No hall meets all hard constraints (capacity, equipment, status, availability).
+            </div>
+            <div class="suggestion-list mt-2">
+              ${unsuitable.slice(0, 4).map(r => `
+                <div class="suggestion-card unsuitable">
+                  <div class="suggestion-info">
+                    <h4>${r.hall.name}</h4>
+                    <div class="suggestion-meta">
+                      <span><i class="fas fa-users"></i> ${r.hall.capacity}</span>
+                    </div>
+                    <p class="text-danger" style="font-size:.8rem; margin-top:.4rem;">${r.reasons.join('; ')}</p>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+          return;
+        }
+
+        area.innerHTML = `<p class="text-muted mb-2" style="font-size:.85rem;">${suitable.length} suitable hall(s) found. Ranked by least excess capacity & equipment match.</p>`;
+        const list = document.createElement('div');
+        list.className = 'suggestion-list';
+
+        suitable.forEach((r, idx) => {
+          const card = document.createElement('div');
+          card.className = 'suggestion-card';
+          card.innerHTML = `
+            <div class="suggestion-info">
+              <h4>
+                ${idx === 0 ? '<span class="rank-badge">Best</span> ' : ''}
+                ${r.hall.name}
+              </h4>
+              <div class="suggestion-meta">
+                <span><i class="fas fa-users"></i> Capacity ${r.hall.capacity} (excess ${r.excess})</span>
+                <span><i class="fas fa-tools"></i> ${r.hall.equipment.join(', ')}</span>
+              </div>
+              <p class="text-success" style="font-size:.8rem; margin-top:.35rem;"><i class="fas fa-check"></i> ${r.reasons[0]}</p>
+            </div>
+            <button class="btn btn-sm btn-primary select-hall" data-id="${r.hall.id}">Select</button>
+          `;
+          list.appendChild(card);
+        });
+
+        if (unsuitable.length) {
+          const details = document.createElement('details');
+          details.style.marginTop = '1rem';
+          details.innerHTML = `<summary style="cursor:pointer; font-size:.85rem; color:var(--text-muted);">Show ${unsuitable.length} unsuitable halls</summary>`;
+          const uList = document.createElement('div');
+          uList.className = 'suggestion-list mt-1';
+          unsuitable.forEach(r => {
+            uList.innerHTML += `
+              <div class="suggestion-card unsuitable">
+                <div class="suggestion-info">
+                  <h4>${r.hall.name}</h4>
+                  <p class="text-danger" style="font-size:.8rem;">${r.reasons.join('; ')}</p>
+                </div>
+              </div>
+            `;
+          });
+          details.appendChild(uList);
+          list.appendChild(details);
+        }
+
+        area.appendChild(list);
+
+        area.querySelectorAll('.select-hall').forEach(btn => {
+          btn.addEventListener('click', () => {
+            selectedHall = results.find(
+              r => Number(r.hall.id) === Number(btn.dataset.id)
+            )?.hall;
+            area.querySelectorAll('.suggestion-card').forEach(c => c.classList.remove('selected'));
+            btn.closest('.suggestion-card').classList.add('selected');
+
+            const cls = subjects.find(
+              s => Number(s.id) === Number(currentRequest.classId)
+            );
+            document.getElementById('confirmSummary').innerHTML = `
+              <strong>Class:</strong> ${cls.subject_code} – ${cls.subject_name}<br>
+              <strong>Students:</strong> ${currentRequest.students}<br>
+              <strong>Date & Time:</strong> ${currentRequest.date}, ${currentRequest.start} – ${currentRequest.end}<br>
+              <strong>Hall:</strong> ${selectedHall.name} · Capacity ${selectedHall.capacity}<br>
+              <strong>Equipment:</strong> ${selectedHall.equipment.join(', ')}
+            `;
+            document.getElementById('btnConfirm').innerHTML = isLecturer
+  ? '<i class="fas fa-paper-plane"></i> Submit Request'
+  : '<i class="fas fa-check"></i> Confirm Allocation';
+            document.getElementById('confirmPanel').classList.remove('hidden');
+            document.getElementById('confirmPanel').scrollIntoView({ behavior: 'smooth' });
+          });
+        });
+      });
+
+      document.getElementById('btnConfirm').addEventListener('click', async () => {
+  if (!selectedHall || !currentRequest) return;
+
+  const payload = {
+    subject_id: currentRequest.classId,
+    date: currentRequest.date,
+    start_time: currentRequest.start,
+    end_time: currentRequest.end,
+    status: isLecturer ? 'pending' : 'confirmed',
+    hall: selectedHall.name,
+    hall_id: selectedHall.id,
+    email: session.email,
+    students: currentRequest.students,
+    equipment: currentRequest.equipment
+  };
+
+  const endpoint = '/api/admin/updateAllocations';
+
+  const button = document.getElementById('btnConfirm');
+  button.disabled = true;
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Unable to save the allocation.');
+    }
+
+    LHAS.showToast(
+      isLecturer
+        ? 'Hall request submitted and is pending approval.'
+        : 'Allocation confirmed successfully.'
+    );
+
+    document.getElementById('confirmPanel').classList.add('hidden');
+
+    selectedHall = null;
+    currentRequest = null;
+
+    document.getElementById('suggestionArea').innerHTML = `
+      <div class="alert alert-success">
+        <strong>${isLecturer ? 'Request submitted!' : 'Allocation confirmed!'}</strong><br>
+        ${isLecturer
+          ? 'Your hall request is pending administrator approval.'
+          : 'The hall allocation has been confirmed.'}
+      </div>
+    `;
+
+    await renderAllocations();
+
+  } catch (error) {
+    console.error('Allocation submission failed:', error);
+    LHAS.showToast(error.message || 'Unable to submit the request.', 'error');
+  } finally {
+    button.disabled = false;
+  }
+});
+
+      document.getElementById('btnCancelConfirm').addEventListener('click', () => {
+        document.getElementById('confirmPanel').classList.add('hidden');
+        selectedHall = null;
+      });
+
+      renderAllocations();
+    });
+  </script>
+</body>
+</html>
