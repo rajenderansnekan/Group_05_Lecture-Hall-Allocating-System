@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard – LHAS</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <i class="fas fa-university"></i>
+          <span>LHAS</span>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Main</div>
+          <a href="dashboard.html" class="nav-link active"><i class="fas fa-th-large"></i> Dashboard</a>
+          <a href="halls.html" class="nav-link"><i class="fas fa-door-open"></i> Lecture Halls</a>
+          <a href="classes.html" class="nav-link"><i class="fas fa-book"></i> Classes & Subjects</a>
+          <a href="allocation.html" class="nav-link"><i class="fas fa-calendar-check"></i> Hall Allocation</a>
+          <a href="timetable.html" class="nav-link"><i class="fas fa-calendar-alt"></i> Timetable</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Reports</div>
+          <a href="reports.html" class="nav-link"><i class="fas fa-chart-bar"></i> Usage Reports</a>
+          <a href="history.html" class="nav-link"><i class="fas fa-history"></i> Allocation History</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">System</div>
+          <a href="users.html" class="nav-link"><i class="fas fa-users"></i> Users</a>
+          <a href="#" class="nav-link" data-logout><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">SA</div>
+          <div class="user-meta">
+            <div class="name">System Admin</div>
+            <div class="role">Admin</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle" aria-label="Toggle menu"><i class="fas fa-bars"></i></button>
+          <h1 class="page-title">Dashboard</h1>
+        </div>
+        <div class="topbar-right">
+          <button class="icon-btn" title="Notifications">
+            <i class="fas fa-bell"></i>
+            <span class="badge">3</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <!-- Stats -->
+        <div class="stats-grid" id="statsGrid">
+          <div class="stat-card">
+            <div class="stat-icon blue"><i class="fas fa-door-open"></i></div>
+            <div class="stat-info">
+              <h3 id="statTotalHalls">0</h3>
+              <p>Total Halls</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon orange"><i class="fas fa-calendar-day"></i></div>
+            <div class="stat-info">
+              <h3 id="statToday">0</h3>
+              <p>Today's Classes</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon purple"><i class="fas fa-chalkboard-teacher"></i></div>
+            <div class="stat-info">
+              <h3 id="statLecturers">0</h3>
+              <p>Lecturers</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon teal"><i class="fas fa-book"></i></div>
+            <div class="stat-info">
+              <h3 id="statSubjects">0</h3>
+              <p>Subjects</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+            <div class="stat-info">
+              <h3 id="statAvailable">0</h3>
+              <p>Available Halls</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon orange"><i class="fas fa-inbox"></i></div>
+            <div class="stat-info">
+              <h3 id="statPending">0</h3>
+              <p>Pending Booking Requests</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- Recent Allocations -->
+          <div class="card">
+            <div class="card-header">
+              <h2>Recent Allocations</h2>
+              <a href="allocation.html" class="btn btn-sm btn-outline">View All</a>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Class</th>
+                      <th>Hall</th>
+                      <th>Date</th>
+                      <th>Time</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recentAllocations"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="card">
+            <div class="card-header">
+              <h2>Quick Actions</h2>
+            </div>
+            <div class="card-body">
+              <div style="display: grid; gap: .75rem;">
+                <a href="allocation.html" class="btn btn-primary btn-block">
+                  <i class="fas fa-plus"></i> New Hall Allocation
+                </a>
+                <a href="halls.html" class="btn btn-secondary btn-block">
+                  <i class="fas fa-door-open"></i> Manage Halls
+                </a>
+                <a href="classes.html" class="btn btn-secondary btn-block">
+                  <i class="fas fa-book"></i> Manage Classes
+                </a>
+                <a href="timetable.html" class="btn btn-secondary btn-block">
+                  <i class="fas fa-calendar-alt"></i> View Timetable
+                </a>
+              </div>
+
+              <div class="mt-2" style="background: #eff6ff; border-radius: 8px; padding: 1rem; font-size: .85rem;">
+                <strong><i class="fas fa-info-circle"></i> Allocation Workflow</strong>
+                <ol style="margin: .5rem 0 0 1.1rem; color: var(--text-muted);">
+                  <li>Select class & requirements</li>
+                  <li>Request hall suggestions</li>
+                  <li>Review ranked results</li>
+                  <li>Confirm after final check</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hall Status Overview -->
+        <div class="card mt-2">
+          <div class="card-header">
+            <h2>Hall Status Overview</h2>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Capacity</th>
+                    <th>Equipment</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="hallOverview"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const session = LHAS.requireAuth(['admin']);
+      if (!session) return;
+      LHAS.initLayout(session);
+
+      // Stats
+      const statsJ = await fetch(`/api/admin/stats`)
+
+      const stats = await statsJ.json()
+
+      const halls = LHAS.halls;
+      document.getElementById('statTotalHalls').textContent = stats.hallsCount;
+      document.getElementById('statToday').textContent = stats.todayClasses;
+      document.getElementById('statLecturers').textContent = stats.lecturers;
+      document.getElementById('statSubjects').textContent = stats.subjects;
+      document.getElementById('statAvailable').textContent = stats.hallsStatus.filter(h => h.status === 'active').length;
+      document.getElementById('statPending').textContent = stats.pendingBookings || 0;
+
+      // Recent allocations
+      const response = await fetch(`/api/timetable?email=${session.email}`)
+      const allocations = await response.json()
+
+      const tbody = document.getElementById('recentAllocations');
+
+      allocations.slice(0, 5).forEach(a => {
+        
+        const tr = document.createElement('tr');
+        
+        tr.innerHTML = `
+          <td><strong>${a.subject_code ? a.subject_code : '—'}</strong><br><span class="text-muted" style="font-size:.75rem">${a.subject ? a.subject : ''}</span></td>
+          <td>${a.hall ? a.hall : '—'}</td>
+          <td>${a.date ? String(a.date).slice(0, 10).split('-').reverse().join('/') : '—'}</td>
+          <td>${a.start_time.slice(0, 5)} - ${a.end_time.slice(0, 5)}</td>
+          <td><span class="status status-${a.status}">${a.status}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Hall overview
+      const hallBody = document.getElementById('hallOverview');
+      stats.hallsStatus.forEach(h => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${h.name}</td>
+          <td>${h.capacity}</td>
+          <td>${h.equipment.join(', ')}</td>
+          <td><span class="status status-${h.status}">${h.status}</span></td>
+        `;
+        hallBody.appendChild(tr);
+      });
+    });
+  </script>
+</body>
+</html>
