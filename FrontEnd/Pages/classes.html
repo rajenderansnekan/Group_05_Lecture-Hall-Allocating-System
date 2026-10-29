@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Classes & Subjects – LHAS</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    dialog.modal-dialog {
+      border: none;
+      padding: 0;
+      border-radius: 10px;
+      width: min(520px, 92vw);
+      max-height: 90vh;
+      overflow-y: auto;
+      background: #fff;
+      color: inherit;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    }
+    dialog.modal-dialog::backdrop {
+      background: rgba(15,23,42,.55);
+    }
+    .modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1rem 1.25rem; border-bottom: 1px solid #e5e7eb;
+    }
+    .modal-header h3 { margin: 0; font-size: 1.05rem; }
+    .modal-close {
+      background: none; border: none; font-size: 1.5rem; cursor: pointer;
+      color: #6b7280; line-height: 1;
+    }
+    .modal-body { padding: 1.25rem; }
+    .modal-footer {
+      display: flex; justify-content: flex-end; gap: .5rem;
+      padding: 1rem 1.25rem; border-top: 1px solid #e5e7eb;
+    }
+    .row-actions { display: flex; gap: .35rem; white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo"><i class="fas fa-university"></i><span>LHAS</span></div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Main</div>
+          <a href="dashboard.html" class="nav-link"><i class="fas fa-th-large"></i> Dashboard</a>
+          <a href="halls.html" class="nav-link"><i class="fas fa-door-open"></i> Lecture Halls</a>
+          <a href="classes.html" class="nav-link active"><i class="fas fa-book"></i> Classes & Subjects</a>
+          <a href="allocation.html" class="nav-link"><i class="fas fa-calendar-check"></i> Hall Allocation</a>
+          <a href="timetable.html" class="nav-link"><i class="fas fa-calendar-alt"></i> Timetable</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Reports</div>
+          <a href="reports.html" class="nav-link"><i class="fas fa-chart-bar"></i> Usage Reports</a>
+          <a href="history.html" class="nav-link"><i class="fas fa-history"></i> Allocation History</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">System</div>
+          <a href="users.html" class="nav-link"><i class="fas fa-users"></i> Users</a>
+          <a href="#" class="nav-link" data-logout><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">SA</div>
+          <div class="user-meta"><div class="name">System Admin</div><div class="role">Admin</div></div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <h1 class="page-title">Classes & Subjects</h1>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="grid-2">
+          <!-- Subjects -->
+          <div class="card">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <h2 style="margin:0;">Subjects</h2>
+              <button class="btn btn-primary btn-sm" id="addSubjectBtn">
+                <i class="fas fa-plus"></i> Add Subject
+              </button>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Code</th>
+                      <th>Name</th>
+                      <th>Department</th>
+                      <th>Lecturer</th>
+                      <th>Equipment</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="subjectsTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lecturers -->
+          <div class="card">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <h2 style="margin:0;">Lecturers</h2>
+              <button class="btn btn-primary btn-sm" id="addLecturerBtn">
+                <i class="fas fa-plus"></i> Add Lecturer
+              </button>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Code</th>
+                      <th>Name</th>
+                      <th>Department</th>
+                      <th>Email</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="lecturersTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Subject Modal -->
+  <dialog id="subjectModal" class="modal-dialog">
+    <form id="subjectForm">
+      <div class="modal-header">
+        <h3 id="subjectModalTitle">Add Subject</h3>
+        <button type="button" class="modal-close" data-close-modal="subjectModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="subjectId" />
+        <div class="form-group">
+          <label>Subject Code *</label>
+          <input type="text" id="subjectCode" required />
+        </div>
+        <div class="form-group">
+          <label>Subject Name *</label>
+          <input type="text" id="subjectName" required />
+        </div>
+        <div class="form-group">
+          <label>Department</label>
+          <input type="text" id="subjectDepartment" />
+        </div>
+        <div class="form-group">
+          <label>Lecturer</label>
+          <select id="subjectLecturer">
+            <option value="">— None —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Required Equipment</label>
+          <input type="text" id="subjectEquipment" placeholder="e.g. Projector, Whiteboard" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-close-modal="subjectModal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Update</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Lecturer Modal -->
+  <dialog id="lecturerModal" class="modal-dialog">
+    <form id="lecturerForm">
+      <div class="modal-header">
+        <h3 id="lecturerModalTitle">Add Lecturer</h3>
+        <button type="button" class="modal-close" data-close-modal="lecturerModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="lecturerId" />
+        <div class="form-group">
+          <label>Index No *</label>
+          <input type="text" id="lecturerIndex" required />
+        </div>
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" id="lecturerName" required />
+        </div>
+        <div class="form-group">
+          <label>Department</label>
+          <input type="text" id="lecturerDepartment" />
+        </div>
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="email" id="lecturerEmail" required />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-close-modal="lecturerModal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Update</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="../js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const session = LHAS.requireAuth(['admin']);
+      if (!session) return;
+      LHAS.initLayout(session);
+
+      const $ = id => document.getElementById(id);
+
+      let subjects = [];
+      let lecturers = [];
+
+      // ---- modal helpers (native <dialog>) ----
+      function openModal(id) {
+        const el = $(id);
+        if (!el) { console.error('Modal not found:', id); return; }
+        try {
+          if (el.open) el.close();
+          if (typeof el.showModal === 'function') {
+            el.showModal();
+          } else {
+            el.setAttribute('open', '');
+          }
+        } catch (err) {
+          console.error('Failed to open modal:', id, err);
+        }
+      }
+      function closeModal(id) {
+        const el = $(id);
+        if (!el) return;
+        if (typeof el.close === 'function') el.close();
+        else el.removeAttribute('open');
+      }
+
+      document.querySelectorAll('[data-close-modal]').forEach(el => {
+        el.addEventListener('click', () => closeModal(el.dataset.closeModal));
+      });
+
+      // Click outside dialog to close
+      document.querySelectorAll('dialog.modal-dialog').forEach(dlg => {
+        dlg.addEventListener('click', e => {
+          if (e.target === dlg) dlg.close();
+        });
+      });
+
+      // ---- load & render ----
+      async function loadSubjects() {
+        try {
+          const res = await fetch('/api/admin/subjects', { credentials: 'include' });
+          if (!res.ok) throw new Error();
+          subjects = await res.json();
+          renderSubjects();
+        } catch {
+          LHAS.showToast('Failed to load subjects', 'error');
+        }
+      }
+
+      async function loadLecturers() {
+        try {
+          const res = await fetch('/api/admin/lecturers', { credentials: 'include' });
+          if (!res.ok) throw new Error();
+          lecturers = await res.json();
+          renderLecturers();
+          populateLecturerSelect();
+        } catch {
+          LHAS.showToast('Failed to load lecturers', 'error');
+        }
+      }
+
+      function renderSubjects() {
+        const body = $('subjectsTable');
+        body.innerHTML = '';
+        if (!subjects.length) {
+          body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#6b7280;">No subjects yet.</td></tr>`;
+          return;
+        }
+        subjects.forEach((s, idx) => {
+          const eq = Array.isArray(s.required_equipment)
+            ? s.required_equipment.join(', ')
+            : (s.required_equipment ?? '');
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${s.subject_code ?? ''}</strong></td>
+            <td>${s.subject_name ?? ''}</td>
+            <td>${s.department ?? '—'}</td>
+            <td>${s.lecturer_name ?? '—'}</td>
+            <td>${eq || '—'}</td>
+            <td class="row-actions">
+              <button type="button" class="btn btn-sm btn-outline" data-edit-idx="${idx}" title="Edit">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-outline" data-del-idx="${idx}" title="Delete">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          `;
+          body.appendChild(tr);
+        });
+        body.querySelectorAll('[data-edit-idx]').forEach(b =>
+          b.addEventListener('click', () => editSubject(Number(b.dataset.editIdx))));
+        body.querySelectorAll('[data-del-idx]').forEach(b =>
+          b.addEventListener('click', () => deleteSubject(Number(b.dataset.delIdx))));
+      }
+
+      function renderLecturers() {
+        const body = $('lecturersTable');
+        body.innerHTML = '';
+        if (!lecturers.length) {
+          body.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#6b7280;">No lecturers yet.</td></tr>`;
+          return;
+        }
+        lecturers.forEach((l, idx) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${l.index_no ?? ''}</strong></td>
+            <td>${l.name ?? ''}</td>
+            <td>${l.department ?? '—'}</td>
+            <td>${l.email ?? '—'}</td>
+            <td class="row-actions">
+              <button type="button" class="btn btn-sm btn-outline" data-edit-idx="${idx}" title="Edit">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-outline" data-del-idx="${idx}" title="Delete">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          `;
+          body.appendChild(tr);
+        });
+        body.querySelectorAll('[data-edit-idx]').forEach(b =>
+          b.addEventListener('click', () => editLecturer(Number(b.dataset.editIdx))));
+        body.querySelectorAll('[data-del-idx]').forEach(b =>
+          b.addEventListener('click', () => deleteLecturer(Number(b.dataset.delIdx))));
+      }
+
+      function populateLecturerSelect() {
+        const sel = $('subjectLecturer');
+        sel.innerHTML = '<option value="">— None —</option>';
+        lecturers.forEach(l => {
+          const opt = document.createElement('option');
+          opt.value = l.index_no;
+          opt.textContent = `${l.name} (${l.index_no})`;
+          sel.appendChild(opt);
+        });
+      }
+
+      // ---- Subject CRUD ----
+      function addSubject() {
+        $('subjectModalTitle').textContent = 'Add Subject';
+        $('subjectForm').reset();
+        $('subjectId').value = '';
+        openModal('subjectModal');
+      }
+
+      function editSubject(idx) {
+        const s = subjects[idx];
+        if (!s) { LHAS.showToast('Subject not found', 'error'); return; }
+        $('subjectModalTitle').textContent = 'Edit Subject';
+        $('subjectId').value = s.id ?? '';
+        $('subjectCode').value = s.subject_code ?? '';
+        $('subjectName').value = s.subject_name ?? '';
+        $('subjectDepartment').value = s.department ?? '';
+        $('subjectLecturer').value = s.lecturer_index ?? '';
+        $('subjectEquipment').value = Array.isArray(s.required_equipment)
+          ? s.required_equipment.join(', ')
+          : (s.required_equipment ?? '');
+        openModal('subjectModal');
+      }
+
+      async function deleteSubject(idx) {
+        const s = subjects[idx];
+        if (!s) return;
+        if (!confirm(`Delete subject ${s.subject_code} – ${s.subject_name}?`)) return;
+        const id = s.id ?? s.subject_id;
+        if (id == null) { LHAS.showToast('Cannot delete: subject has no ID', 'error'); return; }
+        try {
+          const res = await fetch('/api/admin/deleteSubject', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ id })
+          });
+          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to delete subject');
+          LHAS.notify(`Subject deleted: ${s.subject_code}`, 'danger');
+          LHAS.showToast('Subject deleted');
+          await loadSubjects();
+        } catch (err) {
+          LHAS.showToast(err.message || 'Failed to delete subject', 'error');
+        }
+      }
+
+      $('addSubjectBtn').addEventListener('click', addSubject);
+
+      $('subjectForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const id = $('subjectId').value;
+        const body = {
+          subject_code: $('subjectCode').value.trim(),
+          subject_name: $('subjectName').value.trim(),
+          department: $('subjectDepartment').value.trim(),
+          lecturer_index: $('subjectLecturer').value || null,
+          required_equipment: $('subjectEquipment').value
+            .split(',').map(x => x.trim()).filter(Boolean)
+        };
+        if (id) body.id = id;
+        try {
+          const res = await fetch('/api/admin/updateSubject', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body)
+          });
+          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to save subject');
+          LHAS.showToast(id ? 'Subject updated' : 'Subject added');
+          LHAS.notify(id ? `Subject updated: ${body.subject_code}` : `New subject added: ${body.subject_code}`, 'info');
+          closeModal('subjectModal');
+          await loadSubjects();
+        } catch (err) {
+          LHAS.showToast(err.message || 'Failed to save subject', 'error');
+        }
+      });
+
+      // ---- Lecturer CRUD ----
+      function addLecturer() {
+        $('lecturerModalTitle').textContent = 'Add Lecturer';
+        $('lecturerForm').reset();
+        $('lecturerId').value = '';
+        $('lecturerIndex').readOnly = false;
+        openModal('lecturerModal');
+      }
+
+      function editLecturer(idx) {
+        const l = lecturers[idx];
+        if (!l) { LHAS.showToast('Lecturer not found', 'error'); return; }
+        $('lecturerModalTitle').textContent = 'Edit Lecturer';
+        $('lecturerId').value = l.id ?? '';
+        $('lecturerIndex').value = l.index_no ?? '';
+        $('lecturerName').value = l.name ?? '';
+        $('lecturerDepartment').value = l.department ?? '';
+        $('lecturerEmail').value = l.email ?? '';
+        $('lecturerIndex').readOnly = true;
+        openModal('lecturerModal');
+      }
+
+      async function deleteLecturer(idx) {
+        const l = lecturers[idx];
+        if (!l) return;
+        if (!confirm(`Delete lecturer ${l.name}?`)) return;
+        try {
+          const res = await fetch('/api/admin/deleteUser', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(l.id != null ? { id: l.id } : { index_no: l.index_no })
+          });
+          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to delete lecturer');
+          LHAS.showToast('Lecturer deleted');
+          LHAS.notify(`Lecturer removed: ${l.name}`, 'danger');
+          await loadLecturers();
+        } catch (err) {
+          LHAS.showToast(err.message || 'Failed to delete lecturer', 'error');
+        }
+      }
+
+      $('addLecturerBtn').addEventListener('click', addLecturer);
+
+      $('lecturerForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const id = $('lecturerId').value;
+        const body = {
+          index_no: $('lecturerIndex').value.trim(),
+          name: $('lecturerName').value.trim(),
+          department: $('lecturerDepartment').value.trim(),
+          email: $('lecturerEmail').value.trim(),
+          role: 'lecturer'
+        };
+        if (id) body.id = id;
+        try {
+          const res = await fetch('/api/admin/updateUser', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body)
+          });
+          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to save lecturer');
+          LHAS.showToast(id ? 'Lecturer updated' : 'Lecturer added');
+          LHAS.notify(id ? `Lecturer updated: ${body.name}` : `New lecturer added: ${body.name}`, 'info');          
+          closeModal('lecturerModal');
+          await loadLecturers();
+        } catch (err) {
+          LHAS.showToast(err.message || 'Failed to save lecturer', 'error');
+        }
+      });
+
+      // ---- initial load ----
+      await Promise.all([loadLecturers(), loadSubjects()]);
+    });
+  </script>
+</body>
+</html>
