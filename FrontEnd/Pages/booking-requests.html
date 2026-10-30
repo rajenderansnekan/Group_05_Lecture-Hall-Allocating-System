@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Booking Requests – LHAS</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header"><div class="sidebar-logo"><i class="fas fa-university"></i><span>LHAS</span></div></div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Main</div>
+          <a href="dashboard.html" class="nav-link"><i class="fas fa-th-large"></i> Dashboard</a>
+          <a href="halls.html" class="nav-link"><i class="fas fa-door-open"></i> Lecture Halls</a>
+          <a href="classes.html" class="nav-link"><i class="fas fa-book"></i> Classes &amp; Subjects</a>
+          <a href="allocation.html" class="nav-link"><i class="fas fa-calendar-check"></i> Hall Allocation</a>
+          <a href="booking-requests.html" class="nav-link active"><i class="fas fa-inbox"></i> Booking Requests</a>
+          <a href="timetable.html" class="nav-link"><i class="fas fa-calendar-alt"></i> Timetable</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Reports</div>
+          <a href="reports.html" class="nav-link"><i class="fas fa-chart-bar"></i> Usage Reports</a>
+          <a href="history.html" class="nav-link"><i class="fas fa-history"></i> Allocation History</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">System</div>
+          <a href="users.html" class="nav-link"><i class="fas fa-users"></i> Users</a>
+          <a href="#" class="nav-link" data-logout><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+      </nav>
+      <div class="sidebar-footer"><div class="user-info"><div class="user-avatar"></div><div class="user-meta"><div class="name"></div><div class="role"></div></div></div></div>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <h1 class="page-title">Booking Requests</h1>
+        </div>
+        <div class="topbar-right"><button class="icon-btn" title="Notifications"><i class="fas fa-bell"></i></button></div>
+      </header>
+
+      <main class="content-area">
+        <div class="card">
+          <div class="card-header"><h2><i class="fas fa-hourglass-half"></i> Pending Requests</h2></div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table>
+                <thead><tr><th>ID</th><th>Lecturer</th><th>Class</th><th>Date and Time</th><th>Students</th><th>Equipment</th><th>Preferred hall</th><th>Purpose</th><th>Actions</th></tr></thead>
+                <tbody id="pendingTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-2">
+          <div class="card-header"><h2>Decided Requests</h2></div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table>
+                <thead><tr><th>ID</th><th>Lecturer</th><th>Class</th><th>Date and Time</th><th>Hall</th><th>Status</th><th>Reviewed by</th><th>Reason</th></tr></thead>
+                <tbody id="decidedTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const session = LHAS.requireAuth(['admin']);
+      if (!session) return;
+      LHAS.initLayout(session);
+      const esc = LHAS.esc;
+      const statusClass = s => s === 'pending' ? 'status-pending' : s === 'approved' ? 'status-confirmed' : 'status-cancelled';
+      const fmtDate = d => String(d).slice(0, 10).split('-').reverse().join('/');
+      const hhmm = t => String(t).slice(0, 5);
+
+      const post = async (url, body) => {
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+        return { ok: res.ok, data: await res.json().catch(() => ({})) };
+      };
+
+      async function render() {
+        const res = await fetch('/api/admin/bookings');
+        if (!res.ok) { LHAS.showToast('Failed to load booking requests', 'error'); return; }
+        const all = await res.json();
+        const pending = all.filter(b => b.status === 'pending');
+        const decided = all.filter(b => b.status !== 'pending').sort((a, b) => b.id - a.id);
+
+        const pb = document.getElementById('pendingTable');
+        pb.innerHTML = pending.length ? '' : '<tr><td colspan="9"><div class="empty-state"><p>No pending booking requests.</p></div></td></tr>';
+        pending.forEach(b => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>#${b.id}</td>
+            <td>${esc(b.lecturer_name) || '—'}</td>
+            <td><strong>${esc(b.subject_code)}</strong><br><span class="text-muted" style="font-size:.75rem">${esc(b.subject_name)}</span></td>
+            <td>${fmtDate(b.booking_date)}<br><span class="text-muted">${hhmm(b.start_time)} - ${hhmm(b.end_time)}</span></td>
+            <td>${b.students}</td>
+            <td>${esc((b.equipment || []).join(', ')) || '—'}</td>
+            <td>${esc(b.hall_name || 'Any suitable')}</td>
+            <td>${esc(b.purpose)}</td>
+            <td>
+              <button class="btn btn-sm btn-success" data-approve="${b.id}"><i class="fas fa-check"></i> Approve</button>
+              <button class="btn btn-sm btn-danger" data-reject="${b.id}"><i class="fas fa-times"></i> Reject</button>
+            </td>`;
+          pb.appendChild(tr);
+        });
+
+        const db = document.getElementById('decidedTable');
+        db.innerHTML = decided.length ? '' : '<tr><td colspan="8"><div class="empty-state"><p>No decisions yet.</p></div></td></tr>';
+        decided.forEach(b => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>#${b.id}</td>
+            <td>${esc(b.lecturer_name) || '—'}</td>
+            <td><strong>${esc(b.subject_code)}</strong></td>
+            <td>${fmtDate(b.booking_date)} ${hhmm(b.start_time)} - ${hhmm(b.end_time)}</td>
+            <td>${esc(b.hall_name) || '—'}</td>
+            <td><span class="status ${statusClass(b.status)}">${esc(b.status)}</span></td>
+            <td>${esc(b.reviewed_by_name) || '—'}</td>
+            <td>${esc(b.review_reason) || '—'}</td>`;
+          db.appendChild(tr);
+        });
+
+        pb.querySelectorAll('[data-approve]').forEach(btn => btn.addEventListener('click', async () => {
+          if (!confirm('Approve this request? All rules are checked again before the hall is allocated.')) return;
+          const r = await post(`/api/admin/bookings/${btn.dataset.approve}/approve`);
+          LHAS.showToast(r.data.message || (r.ok ? 'Approved' : 'Could not approve'), r.ok ? 'success' : 'error');
+          render();
+        }));
+        pb.querySelectorAll('[data-reject]').forEach(btn => btn.addEventListener('click', async () => {
+          const reason = (prompt('Reason for rejecting this request (required):') || '').trim();
+          if (!reason) { LHAS.showToast('A reason is required to reject a request', 'error'); return; }
+          const r = await post(`/api/admin/bookings/${btn.dataset.reject}/reject`, { reason });
+          LHAS.showToast(r.data.message || (r.ok ? 'Rejected' : 'Could not reject'), r.ok ? 'success' : 'error');
+          render();
+        }));
+      }
+      render();
+    });
+  </script>
+</body>
+</html>
