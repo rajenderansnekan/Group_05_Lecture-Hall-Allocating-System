@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Class Timetable – LHAS</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo"><i class="fas fa-university"></i><span>LHAS</span></div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">My Schedule</div>
+          <a href="student-timetable.html" class="nav-link active"><i class="fas fa-calendar-alt"></i> Class Timetable</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Account</div>
+          <a href="#" class="nav-link" data-logout><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">KS</div>
+          <div class="user-meta"><div class="name">Kamal Silva</div><div class="role">Student</div></div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <h1 class="page-title">Published Class Timetable</h1>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="alert alert-info mb-2">
+          <i class="fas fa-info-circle"></i> Only approved and published allocations are visible. Check hall locations before attending class.
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h2>This Week's Classes</h2></div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Subject</th>
+                    <th>Hall</th>
+                    <th>Lecturer</th>
+                  </tr>
+                </thead>
+                <tbody id="studentTT"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const session = LHAS.requireAuth(['student', 'admin', 'lecturer']);
+      if (!session) return;
+
+      LHAS.initLayout(session);
+
+      const tbody = document.getElementById('studentTT');
+
+      if (session.name) {
+        document.querySelector('.user-meta .name').textContent = session.name;
+
+        document.querySelector('.user-avatar').textContent = session.name
+          .split(' ')
+          .map(part => part[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase();
+      }
+
+      if (session.role) {
+        document.querySelector('.user-meta .role').textContent = session.role;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/timetable?email=${encodeURIComponent(session.email)}`
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch timetable');
+        }
+
+        const allocations = await response.json();
+        tbody.innerHTML = '';
+        console.log(allocations)
+
+        if (!allocations.length) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6">
+                <div class="empty-state">
+                  <p>No published classes at the moment.</p>
+                </div>
+              </td>
+            </tr>`;
+          return;
+        }
+
+        allocations.forEach(a => {
+          const tr = document.createElement('tr');
+
+          const rawDate = a.date ?? a.allocation_date;
+          const date = document.createElement('td');
+
+          if (rawDate) {
+            const dateString = String(rawDate).slice(0, 10);
+            const [year, month, day] = dateString.split('-');
+            date.textContent = `${day}/${month}/${year}`;
+          } else {
+            date.textContent = '—';
+          }
+
+          const time = document.createElement('td');
+          time.textContent =
+            `${a.start ?? a.start_time ?? '—'} – ${a.end ?? a.end_time ?? '—'}`;
+
+          const subject = document.createElement('td');
+          subject.className = 'text-muted';
+          subject.style.fontSize = '.75rem';
+          subject.textContent = a.subject ?? a.subject_name ?? '';
+
+          const hall = document.createElement('td');
+          hall.textContent = a.hall ?? a.hall_name ?? '—';
+
+          const lecturer = document.createElement('td');
+          lecturer.textContent = a.lecturer_name ?? '—';
+
+          tr.append(date, time, subject, hall, lecturer);
+          tbody.appendChild(tr);
+        });
+
+      } catch (error) {
+        console.error('Error loading timetable:', error);
+
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6">Unable to load timetable.</td>
+          </tr>`;
+      }
+    });
+  </script>
+</body>
+</html>
