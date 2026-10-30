@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lecture Halls – LHAS</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo"><i class="fas fa-university"></i><span>LHAS</span></div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Main</div>
+          <a href="dashboard.html" class="nav-link"><i class="fas fa-th-large"></i> Dashboard</a>
+          <a href="halls.html" class="nav-link active"><i class="fas fa-door-open"></i> Lecture Halls</a>
+          <a href="classes.html" class="nav-link"><i class="fas fa-book"></i> Classes & Subjects</a>
+          <a href="allocation.html" class="nav-link"><i class="fas fa-calendar-check"></i> Hall Allocation</a>
+          <a href="timetable.html" class="nav-link"><i class="fas fa-calendar-alt"></i> Timetable</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Reports</div>
+          <a href="reports.html" class="nav-link"><i class="fas fa-chart-bar"></i> Usage Reports</a>
+          <a href="history.html" class="nav-link"><i class="fas fa-history"></i> Allocation History</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">System</div>
+          <a href="users.html" class="nav-link"><i class="fas fa-users"></i> Users</a>
+          <a href="#" class="nav-link" data-logout><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">SA</div>
+          <div class="user-meta"><div class="name">System Admin</div><div class="role">Admin</div></div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <h1 class="page-title">Lecture Hall Management</h1>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-primary" id="btnAddHall"><i class="fas fa-plus"></i> Add Hall</button>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="toolbar">
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchHall" placeholder="Search by code, name or building..." />
+          </div>
+          <select class="filter-select" id="filterStatus">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Capacity</th>
+                    <th>Equipment</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="hallsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Add / Edit Modal -->
+  <div class="modal-overlay" id="hallModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle">Add Lecture Hall</h3>
+        <button class="modal-close" id="closeModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="hallForm">
+          <input type="hidden" id="hallId" />
+          <div class="form-group">
+            <label for="hallName">Name / Code *</label>
+            <input type="text" id="hallName" required placeholder="e.g. Lecture Hall B204" />
+          </div>
+          <div class="form-group">
+            <label for="hallCapacity">Capacity *</label>
+            <input type="number" id="hallCapacity" min="1" required placeholder="e.g. 100" />
+          </div>
+          <div class="form-group">
+            <label for="hallEquipment">Equipment (comma separated)</label>
+            <input type="text" id="hallEquipment" placeholder="Projector, Whiteboard, AC" />
+          </div>
+          <div class="form-group">
+            <label for="hallStatus">Status *</label>
+            <select id="hallStatus" required>
+              <option value="active">Active</option>
+              <option value="maintenance">Under Maintenance</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancelModal">Cancel</button>
+        <button class="btn btn-primary" id="saveHall">Save Hall</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const session = LHAS.requireAuth(['admin']);
+      if (!session) return;
+      LHAS.initLayout(session);
+
+      let editingId = null;
+      let halls = [];
+
+      async function renderHalls() {
+        const search = document.getElementById('searchHall').value.toLowerCase();
+        const status = document.getElementById('filterStatus').value;
+        
+        const response = await fetch(`/api/admin/halls`)
+        halls = await response.json()
+
+        const filteredHalls = halls.filter(h => {
+          const matchSearch = !search || (h.name || '').toLowerCase().includes(search);
+          const matchStatus = !status || h.status === status;
+          return matchSearch && matchStatus;
+        });
+
+        const tbody = document.getElementById('hallsTable');
+        tbody.innerHTML = '';
+        if (!filteredHalls.length) {
+          tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><i class="fas fa-door-closed"></i><p>No halls match your filters</p></div></td></tr>';
+          return;
+        }
+
+        filteredHalls.forEach(h => {
+
+          const tr = document.createElement('tr');
+          
+          tr.innerHTML = `
+            <td>${h.name}</td>
+            <td>${h.capacity}</td>
+            <td>${Array.isArray(h.equipment) ? h.equipment.join(', ') || '—' : h.equipment || '—'}</td>
+            <td><span class="status status-${h.status}">${h.status}</span></td>
+            <td>
+              <button class="btn btn-sm btn-outline" data-edit="${h.id}" title="Edit"><i class="fas fa-edit"></i></button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        // Bind edit / deactivate
+        tbody.querySelectorAll('[data-edit]').forEach(btn => {
+          btn.addEventListener('click', () => openEdit(parseInt(btn.dataset.edit)));
+        });
+      }
+
+      function openEdit(id) {
+        editingId = id;
+        const hall = halls.find(h => Number(h.id) === Number(id));
+        if (!hall) {
+          LHAS.showToast('Hall not found', 'error');
+          return;
+        }
+        document.getElementById('modalTitle').textContent = 'Edit Lecture Hall';
+        document.getElementById('hallName').value = hall.name;
+        document.getElementById('hallCapacity').value = hall.capacity;
+        document.getElementById('hallEquipment').value =
+  Array.isArray(hall.equipment) ? hall.equipment.join(', ') : hall.equipment || '';
+        document.getElementById('hallStatus').value = hall.status;
+        document.getElementById('hallModal').classList.add('show');
+      }
+
+      function openAdd() {
+        editingId = null;
+        document.getElementById('modalTitle').textContent = 'Add Lecture Hall';
+        document.getElementById('hallForm').reset();
+        document.getElementById('hallModal').classList.add('show');
+      }
+
+      function closeModal() {
+        document.getElementById('hallModal').classList.remove('show');
+      }
+
+      document.getElementById('btnAddHall').addEventListener('click', openAdd);
+      document.getElementById('closeModal').addEventListener('click', closeModal);
+      document.getElementById('cancelModal').addEventListener('click', closeModal);
+
+      document.getElementById('saveHall').addEventListener('click', async () => {
+
+        const name = document.getElementById('hallName').value.trim();
+        const capacity = parseInt(document.getElementById('hallCapacity').value);
+        const equipment = document.getElementById('hallEquipment').value.split(',').map(e => e.trim()).filter(Boolean);
+        const status = document.getElementById('hallStatus').value;
+
+        if (!name || !capacity || capacity < 1) {
+          LHAS.showToast('Please fill all required fields correctly', 'error');
+          return;
+        }
+
+        // Duplicate code check
+        const exists = halls.find(h =>
+          h.name.trim().toLowerCase() === name.toLowerCase() &&
+          Number(h.id) !== Number(editingId)
+        );
+        if (exists) {
+          LHAS.showToast('Hall code already exists', 'error');
+          return;
+        }
+
+        const hallsData = [{
+          id: editingId || null,
+          name,
+          capacity,
+          equipment,
+          status
+        }];
+
+        const response = await fetch('/api/admin/updateHalls', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(hallsData)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          LHAS.showToast(result.message || 'Failed to save hall', 'error');
+          return;
+        }
+
+        if (editingId) {
+          LHAS.showToast(`Hall ${name} updated successfully`);
+        } else {
+          LHAS.showToast(`Hall ${name} created successfully`);
+        }
+        LHAS.notify(editingId ? `Hall ${name} updated` : `New hall added: ${name}`, editingId ? 'info' : 'success');
+        closeModal();
+        renderHalls();
+      });
+
+      document.getElementById('searchHall').addEventListener('input', renderHalls);
+      document.getElementById('filterStatus').addEventListener('change', renderHalls);
+
+      renderHalls();
+    });
+  </script>
+</body>
+</html>
