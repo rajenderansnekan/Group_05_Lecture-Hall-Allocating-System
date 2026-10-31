@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Allocation History – LHAS</title>
+
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <i class="fas fa-university"></i>
+          <span>LHAS</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Main</div>
+          <a href="dashboard.html" class="nav-link"><i class="fas fa-th-large"></i> Dashboard</a>
+          <a href="halls.html" class="nav-link"><i class="fas fa-door-open"></i> Lecture Halls</a>
+          <a href="classes.html" class="nav-link"><i class="fas fa-book"></i> Classes &amp; Subjects</a>
+          <a href="allocation.html" class="nav-link"><i class="fas fa-calendar-check"></i> Hall Allocation</a>
+          <a href="timetable.html" class="nav-link"><i class="fas fa-calendar-alt"></i> Timetable</a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Reports</div>
+          <a href="reports.html" class="nav-link"><i class="fas fa-chart-bar"></i> Usage Reports</a>
+          <a href="history.html" class="nav-link active"><i class="fas fa-history"></i> Allocation History</a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">System</div>
+          <a href="users.html" class="nav-link"><i class="fas fa-users"></i> Users</a>
+          <a href="#" class="nav-link" data-logout><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">SA</div>
+          <div class="user-meta">
+            <div class="name">System Admin</div>
+            <div class="role">Admin</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle" type="button">
+            <i class="fas fa-bars"></i>
+          </button>
+          <h1 class="page-title">Allocation History &amp; Audit</h1>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="card">
+          <div class="card-header">
+            <h2>Audit Log</h2>
+          </div>
+
+          <div class="card-body">
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Action</th>
+                    <th>Hall</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Status</th>
+                    <th>By</th>
+                    <th>Reason</th>
+                  </tr>
+                </thead>
+
+                <tbody id="historyTable">
+                  <tr>
+                    <td colspan="8" style="text-align:center;">
+                      Loading allocation history...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/app.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const tableBody = document.getElementById('historyTable');
+
+      function showMessage(message) {
+        tableBody.replaceChildren();
+
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+
+        cell.colSpan = 8;
+        cell.textContent = message;
+        cell.style.textAlign = 'center';
+
+        row.appendChild(cell);
+        tableBody.appendChild(row);
+      }
+
+      // Format YYYY-MM-DD as 26 Oct 2026.
+      function formatDate(value) {
+        if (!value) return '—';
+
+        const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+        if (!match) return String(value);
+
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        const day = Number(match[3]);
+
+        const date = new Date(year, month - 1, day);
+
+        return date.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        });
+      }
+
+      // Format a MySQL TIME value as 9:30 AM.
+      function formatSingleTime(value) {
+        if (!value) return '';
+
+        const match = String(value).match(/^(\d{1,2}):(\d{2})/);
+
+        if (!match) return String(value);
+
+        const hours = Number(match[1]);
+        const minutes = Number(match[2]);
+
+        if (hours > 23 || minutes > 59) return String(value);
+
+        const date = new Date(2000, 0, 1, hours, minutes);
+
+        return date.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+
+      // Show start and end times together.
+      function formatTime(start, end) {
+        const startTime = formatSingleTime(start);
+        const endTime = formatSingleTime(end);
+
+        if (startTime && endTime) {
+          return `${startTime} – ${endTime}`;
+        }
+
+        return startTime || endTime || '—';
+      }
+
+      function createCell(value) {
+        const cell = document.createElement('td');
+        cell.textContent = value == null || value === '' ? '—' : value;
+        return cell;
+      }
+
+      function createStatusCell(status) {
+        const cell = document.createElement('td');
+        const badge = document.createElement('span');
+
+        const normalizedStatus = String(status || '').toLowerCase();
+
+        badge.className = 'status-badge';
+        badge.textContent = status || 'Unknown';
+
+        if (normalizedStatus === 'confirmed') {
+          badge.classList.add('status-confirmed');
+        } else if (normalizedStatus === 'cancelled') {
+          badge.classList.add('status-cancelled');
+        } else {
+          badge.classList.add('status-unknown');
+        }
+
+        cell.appendChild(badge);
+        return cell;
+      }
+
+      try {
+        const response = await fetch('/api/admin/history');
+
+        if (!response.ok) {
+          const errorText = await response.text();
+
+          console.error(
+            'History API error:',
+            response.status,
+            errorText
+          );
+
+          throw new Error(
+            `Failed to load allocation history (${response.status}).`
+          );
+        }
+
+        const result = await response.json();
+        const history = Array.isArray(result.history)
+          ? result.history
+          : [];
+
+        if (history.length === 0) {
+          showMessage('No allocation history found.');
+          return;
+        }
+
+        tableBody.replaceChildren();
+
+        history.forEach(item => {
+          const row = document.createElement('tr');
+
+          row.appendChild(createCell(item.id));
+          row.appendChild(createCell(item.action));
+          row.appendChild(createCell(item.hall));
+          row.appendChild(createCell(formatDate(item.date)));
+          row.appendChild(
+            createCell(formatTime(item.start_time, item.end_time))
+          );
+          row.appendChild(createStatusCell(item.status));
+          row.appendChild(createCell(item.createdBy));
+          row.appendChild(createCell(item.reason || '—'));
+
+          tableBody.appendChild(row);
+        });
+
+      } catch (error) {
+        console.error('Error loading allocation history:', error);
+        showMessage('Unable to load allocation history. Please try again.');
+      }
+    });
+  </script>
+</body>
+</html>
