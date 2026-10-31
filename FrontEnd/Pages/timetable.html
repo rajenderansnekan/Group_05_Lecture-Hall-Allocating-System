@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Timetable – LHAS</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo"><i class="fas fa-university"></i><span>LHAS</span></div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Main</div>
+          <a href="dashboard.html" class="nav-link"><i class="fas fa-th-large"></i> Dashboard</a>
+          <a href="halls.html" class="nav-link"><i class="fas fa-door-open"></i> Lecture Halls</a>
+          <a href="classes.html" class="nav-link"><i class="fas fa-book"></i> Classes & Subjects</a>
+          <a href="allocation.html" class="nav-link"><i class="fas fa-calendar-check"></i> Hall Allocation</a>
+          <a href="timetable.html" class="nav-link active"><i class="fas fa-calendar-alt"></i> Timetable</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Reports</div>
+          <a href="reports.html" class="nav-link"><i class="fas fa-chart-bar"></i> Usage Reports</a>
+          <a href="history.html" class="nav-link"><i class="fas fa-history"></i> Allocation History</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">System</div>
+          <a href="users.html" class="nav-link"><i class="fas fa-users"></i> Users</a>
+          <a href="#" class="nav-link" data-logout><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">SA</div>
+          <div class="user-meta"><div class="name">System Admin</div><div class="role">Admin</div></div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <h1 class="page-title">Timetable View</h1>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="toolbar">
+          <input type="date" class="filter-select" id="filterDate" value="2026-10-15" />
+          <select class="filter-select" id="filterHall">
+            <option value="">All Halls</option>
+          </select>
+          <select class="filter-select" id="filterLecturer">
+            <option value="">All Lecturers</option>
+          </select>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2 id="ttTitle">Timetable – 15 October 2026</h2>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Class</th>
+                    <th>Lecturer</th>
+                    <th>Hall</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="ttBody"></tbody>
+              </table>
+            </div>
+            <div id="ttEmpty" class="empty-state hidden">
+              <i class="fas fa-calendar-times"></i>
+              <p>No classes found for the selected filters.</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/app.js"></script>
+  ```html
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const session = LHAS.requireAuth(['admin']);
+  if (!session) return;
+
+  LHAS.initLayout(session);
+
+  const hallSelect = document.getElementById('filterHall');
+  const lectSelect = document.getElementById('filterLecturer');
+  const tbody = document.getElementById('ttBody');
+  const empty = document.getElementById('ttEmpty');
+
+  let timetable = [];
+
+  async function loadTimetable() {
+    try {
+      const response = await fetch('/api/admin/timetable');
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch timetable data');
+      }
+
+      timetable = await response.json();
+
+      // Populate hall filter from backend data
+      const halls = [...new Map(
+        timetable.map(a => [
+          a.hall_id,
+          { id: a.hall_id, name: a.hall_name }
+        ])
+      ).values()];
+
+      halls.forEach(h => {
+        const option = document.createElement('option');
+        option.value = h.id;
+        option.textContent = h.name;
+        hallSelect.appendChild(option);
+      });
+
+      // Populate lecturer filter from backend data
+      const lecturers = [...new Map(
+        timetable
+          .filter(a => a.lecturer_index_no && a.lecturer_name)
+          .map(a => [
+            a.lecturer_index_no,
+            { id: a.lecturer_index_no, name: a.lecturer_name }
+          ])
+      ).values()];
+
+      lecturers.forEach(l => {
+        const option = document.createElement('option');
+        option.value = l.id;
+        option.textContent = l.name;
+        lectSelect.appendChild(option);
+      });
+
+      render();
+    } catch (error) {
+      console.error('Error loading timetable:', error);
+      tbody.innerHTML = '';
+      empty.classList.remove('hidden');
+      empty.querySelector('p').textContent =
+        'Failed to load timetable data. Please try again.';
+    }
+  }
+
+  function render() {
+    const date = document.getElementById('filterDate').value;
+    const hallId = hallSelect.value;
+    const lecturerId = lectSelect.value;
+
+    document.getElementById('ttTitle').textContent =
+      `Timetable – ${date}`;
+
+    let list = timetable.filter(a =>
+      String(a.date).slice(0, 10) === date &&
+      a.status === 'confirmed'
+    );
+
+    if (hallId) {
+      list = list.filter(a => String(a.hall_id) === hallId);
+    }
+
+    if (lecturerId) {
+      list = list.filter(a =>
+        String(a.lecturer_index_no) === lecturerId
+      );
+    }
+
+    tbody.innerHTML = '';
+
+    if (!list.length) {
+      empty.classList.remove('hidden');
+      empty.querySelector('p').textContent =
+        'No classes found for the selected filters.';
+      return;
+    }
+
+    empty.classList.add('hidden');
+
+    list.sort((a, b) =>
+      String(a.start_time).localeCompare(String(b.start_time))
+    );
+
+    list.forEach(a => {
+      const start = String(a.start_time).slice(0, 5);
+      const end = String(a.end_time).slice(0, 5);
+
+      const tr = document.createElement('tr');
+
+      tr.innerHTML = `
+        <td>${start} – ${end}</td>
+        <td>
+          <strong>${a.subject_code || '—'}</strong><br>
+          <span class="text-muted" style="font-size:.75rem">
+            ${a.subject_name || ''}
+          </span>
+        </td>
+        <td>${a.lecturer_name || '—'}</td>
+        <td>${a.hall_name || '—'}</td>
+        <td>
+          <span class="status status-${a.status}">
+            ${a.status}
+          </span>
+        </td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  document.getElementById('filterDate')
+    .addEventListener('change', render);
+
+  hallSelect.addEventListener('change', render);
+  lectSelect.addEventListener('change', render);
+
+  await loadTimetable();
+});
+</script>
+```
+</body>
+</html>
