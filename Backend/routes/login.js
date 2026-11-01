@@ -1,17 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const { sign, checkPassword, hashPassword } = require('../lib/auth');
+const { sign, checkPassword, hashPassword, TOKEN_HOURS, REMEMBER_HOURS } = require('../lib/auth');
 
-// FR-45: lock the account for 15 minutes after 5 failed attempts
+
 const attempts = new Map();
 const MAX_FAILS = 5;
 const LOCK_MS = 15 * 60 * 1000;
 
 router.post('/login', async (req, res) => {
   try {
-    const email = String((req.body || {}).email || '').trim().toLowerCase();
-    const password = String((req.body || {}).password || '');
-    if (!email || !password) return res.status(400).json({ message: 'Email and password are required' });
+    const body = req.body || {};
+
+    const email = String(body.identifier || body.email || '').trim().toLowerCase();
+    const password = String(body.password || '');
+    const remember = body.remember === true;
+    if (!email || !password) return res.status(400).json({ message: 'Enter your ID or email and your password.' });
 
     const lock = attempts.get(email);
     if (lock && lock.until && lock.until > Date.now()) {
@@ -19,7 +22,7 @@ router.post('/login', async (req, res) => {
       return res.status(429).json({ message: `Too many failed attempts. Try again in ${mins} minute(s).` });
     }
 
-    const [rows] = await req.pool.query('SELECT * FROM users WHERE LOWER(email) = ? LIMIT 1', [email]);
+    const [rows] = await req.pool.query('SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(index_no) = ? ORDER BY (LOWER(email) = ?) DESC LIMIT 1', [email, email, email]);
     const user = rows[0];
     const check = user ? await checkPassword(password, user.password) : { ok: false };
 
@@ -28,7 +31,7 @@ router.post('/login', async (req, res) => {
       a.count += 1;
       if (a.count >= MAX_FAILS) { a.until = Date.now() + LOCK_MS; a.count = 0; }
       attempts.set(email, a);
-      // FR-04: the message does not say which part was wrong
+
       return res.status(401).json({ message: 'Invalid credentials. Please check your email and password.' });
     }
     if (user.status && user.status !== 'active') {
@@ -36,17 +39,17 @@ router.post('/login', async (req, res) => {
     }
     attempts.delete(email);
 
-    // Old plain-text passwords are replaced by a bcrypt hash at the first successful login
+
     if (check.legacy) {
       await req.pool.query('UPDATE users SET password = ? WHERE id = ?', [await hashPassword(password), user.id]);
     }
 
-    const token = sign({ id: user.id, email: user.email.toLowerCase(), role: user.role });
+    const token = sign({ id: user.id, email: user.email.toLowerCase(), role: user.role }, remember ? REMEMBER_HOURS : TOKEN_HOURS);
     res.json({
       token,
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
-        initials: user.initials, department: user.department, index_no: user.index_no
+        initials: user.initials, department: user.department, index_no: user.index_no, batch_year: user.batch_year
       }
     });
   } catch (err) {
