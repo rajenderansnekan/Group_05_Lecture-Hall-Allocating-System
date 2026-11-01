@@ -71,6 +71,28 @@
           </div>
         </div>
 
+        <div class="card mb-2" id="exportCard">
+          <div class="card-header"><h2>Export allocation history</h2></div>
+          <div class="card-body">
+            <div class="filters" style="margin-bottom:0;">
+              <div class="form-group">
+                <label for="exPeriod">Period</label>
+                <select id="exPeriod">
+                  <option value="yesterday">Yesterday</option>
+                  <option value="today" selected>Today</option>
+                  <option value="tomorrow">Tomorrow</option>
+                  <option value="custom">Choose dates</option>
+                </select>
+              </div>
+              <div class="form-group" id="exFromGroup" hidden><label for="exFrom">From</label><input type="date" id="exFrom" /></div>
+              <div class="form-group" id="exToGroup" hidden><label for="exTo">To</label><input type="date" id="exTo" /></div>
+              <button class="btn btn-outline" type="button" id="exCsv"><i class="fas fa-file-csv"></i> Download CSV</button>
+              <button class="btn btn-outline" type="button" id="exPdf"><i class="fas fa-file-pdf"></i> Download PDF</button>
+            </div>
+            <small class="hint" id="exHint">Includes confirmed, pending and cancelled allocations for the chosen days.</small>
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-header"><h2>Hall Usage Summary</h2></div>
           <div class="card-body">
@@ -102,6 +124,66 @@
     if (!session) return;
 
     LHAS.initLayout(session);
+
+    // ---------- export allocation history (yesterday, today, tomorrow or chosen dates) ----------
+    (() => {
+      const $ = id => document.getElementById(id);
+      const toCsvCell = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+      const fmtDate = d => String(d).slice(0, 10).split('-').reverse().join('/');
+      const hhmm = t => String(t).slice(0, 5);
+      $('exPeriod').addEventListener('change', () => {
+        const custom = $('exPeriod').value === 'custom';
+        $('exFromGroup').hidden = !custom; $('exToGroup').hidden = !custom;
+      });
+
+      async function fetchRows() {
+        const q = new URLSearchParams({ range: $('exPeriod').value });
+        if ($('exPeriod').value === 'custom') {
+          if (!$('exFrom').value || !$('exTo').value) { LHAS.showToast('Choose both dates', 'error'); return null; }
+          q.set('from', $('exFrom').value); q.set('to', $('exTo').value);
+        }
+        const res = await fetch('/api/admin/reports/allocations?' + q);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { LHAS.showToast(data.message || 'Could not load the allocations', 'error'); return null; }
+        if (!data.rows.length) { LHAS.showToast('There are no allocations for this period', 'warning'); return null; }
+        return data;
+      }
+      const label = d => d.from === d.to ? fmtDate(d.from) : `${fmtDate(d.from)} to ${fmtDate(d.to)}`;
+      const fileTag = d => d.from === d.to ? d.from : `${d.from}_to_${d.to}`;
+
+      $('exCsv').addEventListener('click', async () => {
+        const data = await fetchRows(); if (!data) return;
+        const head = ['Date', 'Start', 'End', 'Hall', 'Subject code', 'Subject', 'Lecturer', 'Department', 'Batch year', 'Status', 'Cancellation reason'];
+        const lines = [head.map(toCsvCell).join(',')].concat(data.rows.map(r => [
+          String(r.date).slice(0, 10), hhmm(r.start_time), hhmm(r.end_time), r.hall, r.subject_code, r.subject, r.lecturer_name,
+          r.department, r.batch_year ? 'Year ' + r.batch_year : '', r.status, r.cancellation_reason || ''
+        ].map(toCsvCell).join(',')));
+        const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = `lhas-allocations-${fileTag(data)}.csv`;
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+        LHAS.showToast('CSV downloaded');
+      });
+
+      $('exPdf').addEventListener('click', async () => {
+        if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') { LHAS.showToast('PDF libraries could not be loaded. Check your connection.', 'error'); return; }
+        const data = await fetchRows(); if (!data) return;
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        doc.setFontSize(15); doc.text('Hall allocation history', 14, 16);
+        doc.setFontSize(10); doc.setTextColor(90);
+        doc.text(`Period: ${label(data)}`, 14, 23);
+        doc.text(`Generated: ${new Date().toLocaleString('en-GB')}   Records: ${data.rows.length}`, 14, 28);
+        doc.autoTable({
+          startY: 33,
+          head: [['Date', 'Time', 'Hall', 'Subject', 'Lecturer', 'Department', 'Batch', 'Status']],
+          body: data.rows.map(r => [fmtDate(r.date), `${hhmm(r.start_time)} - ${hhmm(r.end_time)}`, r.hall, `${r.subject_code} ${r.subject || ''}`, r.lecturer_name || '', r.department || '', r.batch_year ? 'Year ' + r.batch_year : '', r.status]),
+          styles: { fontSize: 9 }, headStyles: { fillColor: [30, 64, 175] }
+        });
+        doc.save(`lhas-allocations-${fileTag(data)}.pdf`);
+        LHAS.showToast('PDF downloaded');
+      });
+    })();
 
     let reportData = null;
 
