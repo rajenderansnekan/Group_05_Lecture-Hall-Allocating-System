@@ -38,27 +38,38 @@
           <button class="menu-toggle"><i class="fas fa-bars"></i></button>
           <h1 class="page-title">Published Class Timetable</h1>
         </div>
+        <div class="topbar-right"><button class="icon-btn" title="Notifications"><i class="fas fa-bell"></i></button></div>
       </header>
 
       <main class="content-area">
-        <div class="alert alert-info mb-2">
-          <i class="fas fa-info-circle"></i> Only approved and published allocations are visible. Check hall locations before attending class.
+        <div class="filters">
+          <div class="form-group">
+            <label for="fBatch">Batch year</label>
+            <select id="fBatch">
+              <option value="">All batches</option>
+              <option value="1">Year 1</option>
+              <option value="2">Year 2</option>
+              <option value="3">Year 3</option>
+              <option value="4">Year 4</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="fShow">Show</label>
+            <select id="fShow">
+              <option value="upcoming">Upcoming classes</option>
+              <option value="week">This week</option>
+              <option value="all">Everything</option>
+            </select>
+          </div>
+          <button class="btn btn-outline" id="fClear" type="button"><i class="fas fa-times"></i> Clear filters</button>
         </div>
 
         <div class="card">
-          <div class="card-header"><h2>This Week's Classes</h2></div>
+          <div class="card-header"><h2 id="ttTitle">Upcoming Classes</h2></div>
           <div class="card-body">
             <div class="table-responsive">
               <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Time</th>
-                    <th>Subject</th>
-                    <th>Hall</th>
-                    <th>Lecturer</th>
-                  </tr>
-                </thead>
+                <thead><tr><th>Date</th><th>Time</th><th>Subject</th><th>Batch</th><th>Hall</th><th>Lecturer</th></tr></thead>
                 <tbody id="studentTT"></tbody>
               </table>
             </div>
@@ -71,94 +82,57 @@
   <script src="../js/app.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
-      const session = LHAS.requireAuth(['student', 'admin', 'lecturer']);
+      const session = LHAS.requireAuth(['student']);
       if (!session) return;
-
       LHAS.initLayout(session);
 
-      const tbody = document.getElementById('studentTT');
+      const $ = id => document.getElementById(id);
+      const esc = LHAS.esc;
+      const pad = n => String(n).padStart(2, '0');
+      const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const today = ymd(new Date());
+      const weekEnd = ymd(new Date(Date.now() + 6 * 86400000));
+      const fmtDate = d => String(d).slice(0, 10).split('-').reverse().join('/');
+      let all = [];
 
-      if (session.name) {
-        document.querySelector('.user-meta .name').textContent = session.name;
+      // Start with the student's own batch when it is known
+      if (session.batchYear) $('fBatch').value = String(session.batchYear);
 
-        document.querySelector('.user-avatar').textContent = session.name
-          .split(' ')
-          .map(part => part[0])
-          .join('')
-          .slice(0, 2)
-          .toUpperCase();
-      }
+      const res = await fetch('/api/timetable');
+      if (!res.ok) { LHAS.showToast('Failed to load the timetable', 'error'); return; }
+      all = await res.json();
+      render();
 
-      if (session.role) {
-        document.querySelector('.user-meta .role').textContent = session.role;
-      }
+      function render() {
+        const batch = $('fBatch').value;
+        const show = $('fShow').value;
+        $('ttTitle').textContent = { upcoming: 'Upcoming Classes', week: "This Week's Classes", all: 'All Published Classes' }[show];
+        const rows = all.filter(a => {
+          const d = String(a.date).slice(0, 10);
+          if (batch && String(a.batch_year) !== batch) return false;
+          if (show === 'upcoming') return d >= today;
+          if (show === 'week') return d >= today && d <= weekEnd;
+          return true;
+        }).sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.start_time).localeCompare(String(b.start_time)));
 
-      try {
-        const response = await fetch(
-          `/api/timetable?email=${encodeURIComponent(session.email)}`
-        );
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch timetable');
-        }
-
-        const allocations = await response.json();
-        tbody.innerHTML = '';
-        console.log(allocations)
-
-        if (!allocations.length) {
-          tbody.innerHTML = `
-            <tr>
-              <td colspan="6">
-                <div class="empty-state">
-                  <p>No published classes at the moment.</p>
-                </div>
-              </td>
-            </tr>`;
+        const tbody = $('studentTT');
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>No published classes match these filters.</p></div></td></tr>';
           return;
         }
-
-        allocations.forEach(a => {
-          const tr = document.createElement('tr');
-
-          const rawDate = a.date ?? a.allocation_date;
-          const date = document.createElement('td');
-
-          if (rawDate) {
-            const dateString = String(rawDate).slice(0, 10);
-            const [year, month, day] = dateString.split('-');
-            date.textContent = `${day}/${month}/${year}`;
-          } else {
-            date.textContent = '—';
-          }
-
-          const time = document.createElement('td');
-          time.textContent =
-            `${a.start ?? a.start_time ?? '—'} – ${a.end ?? a.end_time ?? '—'}`;
-
-          const subject = document.createElement('td');
-          subject.className = 'text-muted';
-          subject.style.fontSize = '.75rem';
-          subject.textContent = a.subject ?? a.subject_name ?? '';
-
-          const hall = document.createElement('td');
-          hall.textContent = a.hall ?? a.hall_name ?? '—';
-
-          const lecturer = document.createElement('td');
-          lecturer.textContent = a.lecturer_name ?? '—';
-
-          tr.append(date, time, subject, hall, lecturer);
-          tbody.appendChild(tr);
-        });
-
-      } catch (error) {
-        console.error('Error loading timetable:', error);
-
-        tbody.innerHTML = `
+        tbody.innerHTML = rows.map(a => `
           <tr>
-            <td colspan="6">Unable to load timetable.</td>
-          </tr>`;
+            <td>${fmtDate(a.date)}</td>
+            <td>${String(a.start_time).slice(0, 5)} - ${String(a.end_time).slice(0, 5)}</td>
+            <td><strong>${esc(a.subject_code)}</strong><br><span class="text-muted" style="font-size:.78rem">${esc(a.subject)}</span></td>
+            <td>${a.batch_year ? 'Year ' + a.batch_year : '—'}</td>
+            <td>${esc(a.hall) || '—'}</td>
+            <td>${esc(a.lecturer_name) || '—'}</td>
+          </tr>`).join('');
       }
+      $('fBatch').addEventListener('change', render);
+      $('fShow').addEventListener('change', render);
+      $('fClear').addEventListener('click', () => { $('fBatch').value = ''; $('fShow').value = 'upcoming'; render(); });
     });
   </script>
 </body>
