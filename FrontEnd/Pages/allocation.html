@@ -84,8 +84,9 @@
                   </div>
                 </div>
                 <div class="form-group mt-2">
-                  <label for="equipment">Required Equipment</label>
-                  <input type="text" id="equipment" placeholder="e.g. Projector, Whiteboard" />
+                  <label>Required Equipment</label>
+                  <div id="equipmentPicker"></div>
+                  <small class="hint">Projector and whiteboard are needed for every class. Tick anything else the class needs, or add your own.</small>
                 </div>
                 <button type="submit" class="btn btn-primary btn-block mt-2">
                   <i class="fas fa-magic"></i> Get Suggestions
@@ -212,13 +213,20 @@
         subjectSelect.appendChild(opt);
       });
 
+      const picker = LHAS.equipmentPicker(document.getElementById('equipmentPicker'), []);
       subjectSelect.addEventListener('change', () => {
-        const c = LHAS.getClass(parseInt(subjectSelect.value));
-        if (c) {
-          document.getElementById('students').value = "";
-          document.getElementById('equipment').value = "";
-        }
+        const subject = subjects.find(x => x.id === parseInt(subjectSelect.value));
+        document.getElementById('students').value = '';
+        let wanted = subject ? subject.required_equipment : [];
+        if (typeof wanted === 'string') { try { wanted = JSON.parse(wanted); } catch { wanted = wanted.split(','); } }
+        picker.set(Array.isArray(wanted) ? wanted : []);
       });
+
+      // No allocations for days that have already gone
+      const nowLocal = new Date();
+      const pad2 = n => String(n).padStart(2, '0');
+      const todayStr = `${nowLocal.getFullYear()}-${pad2(nowLocal.getMonth() + 1)}-${pad2(nowLocal.getDate())}`;
+      document.getElementById('allocDate').min = todayStr;
 
       let allocations = []
 
@@ -282,9 +290,9 @@
               a => a.id === parseInt(btn.dataset.cancel)
             );
 
-            if (allocation && confirm('Cancel this allocation? The hall will become available again.')) {
-              const reason = prompt('Reason for cancelling this allocation:', 'Cancelled by administrator');
-              if (!reason || !reason.trim()) { LHAS.showToast('A reason is required to cancel an allocation', 'error'); return; }
+            if (allocation) {
+              const reason = await LHAS.askReason({ title: 'Cancel this allocation?', message: 'The lecturer is told and the hall becomes free.', placeholder: 'Reason for cancelling', confirmText: 'Cancel allocation' });
+              if (!reason) return;
               allocation.status = 'cancelled';
               allocation.cancellation_reason = reason.trim();
               const response = await fetch('/api/admin/updateAllocations', {
@@ -344,7 +352,7 @@
         const date = document.getElementById('allocDate').value;
         const start = document.getElementById('startTime').value;
         const end = document.getElementById('endTime').value;
-        const equipment = document.getElementById('equipment').value.split(',').map(x => x.trim()).filter(Boolean);
+        const equipment = picker.get();
 
         if (!classId || !students || !date || !start || !end) {
           LHAS.showToast('Please fill all required fields', 'error');
@@ -353,6 +361,11 @@
 
         if (end <= start) {
           LHAS.showToast('End time must be later than start time', 'error');
+          return;
+        }
+
+        if (date < todayStr) {
+          LHAS.showToast('You can not allocate a hall for a past date', 'error');
           return;
         }
 
