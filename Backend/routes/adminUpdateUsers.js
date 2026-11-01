@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const { hashPassword, passwordProblems } = require('../lib/auth');
+const { notify } = require('../lib/allocations');
 
 const DEFAULT_PASSWORD = 'LHAS@1234';
 
@@ -23,6 +25,15 @@ router.post('/updateUser', async (req, res) => {
     if (!u.name || !u.email) {
       return res.status(400).json({ message: 'name and email are required' });
     }
+    const role = u.role || 'lecturer';
+    if (!['admin', 'lecturer', 'student'].includes(role)) {
+      return res.status(400).json({ message: 'Role must be admin, lecturer or student' });
+    }
+    const batchYear = u.batch_year === '' || u.batch_year == null ? null : Number(u.batch_year);
+    if (batchYear !== null && ![1, 2, 3, 4].includes(batchYear)) {
+      return res.status(400).json({ message: 'Batch year must be 1, 2, 3 or 4' });
+    }
+    const status = u.status === 'inactive' ? 'inactive' : 'active';
 
 
     const [dupEmail] = await req.pool.query(
@@ -52,15 +63,19 @@ router.post('/updateUser', async (req, res) => {
         'email = ?',
         'department = ?',
         'role = ?',
-        'index_no = ?'
+        'index_no = ?',
+        'batch_year = ?',
+        'status = ?'
       ];
       const vals = [
         u.name,
         initialsFromName(u.name),
         u.email,
         u.department ?? null,
-        u.role || 'lecturer',
-        u.index_no ?? null
+        role,
+        u.index_no || null,
+        role === 'student' ? batchYear : null,
+        status
       ];
 
 
@@ -94,16 +109,18 @@ router.post('/updateUser', async (req, res) => {
 
     const [result] = await req.pool.query(
       `INSERT INTO users
-         (name, initials, department, status, index_no, email, password, role)
-       VALUES (?, ?, ?, 'active', ?, ?, ?, ?)`,
+         (name, initials, department, status, index_no, email, password, role, batch_year)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         u.name,
         initialsFromName(u.name),
         u.department ?? null,
-        u.index_no ?? null,
+        status,
+        u.index_no || null,
         u.email,
         password,
-        u.role || 'lecturer'
+        role,
+        role === 'student' ? batchYear : null
       ]
     );
 
@@ -111,6 +128,21 @@ router.post('/updateUser', async (req, res) => {
   } catch (err) {
     console.error('updateUser error:', err);
     return res.status(500).json({ message: 'Failed to save user' });
+  }
+});
+
+// Used when someone forgot their password and email is not set up: the administrator gives them a temporary one.
+router.post('/users/:id/temporary-password', async (req, res) => {
+  try {
+    const [rows] = await req.pool.query('SELECT id, email FROM users WHERE id = ?', [Number(req.params.id)]);
+    if (!rows.length) return res.status(404).json({ message: 'User not found' });
+    const temp = 'Lhas-' + crypto.randomBytes(4).toString('hex') + 'A1';
+    await req.pool.query('UPDATE users SET password = ? WHERE id = ?', [await hashPassword(temp), rows[0].id]);
+    await notify(req.pool, { to: rows[0].email, message: 'An administrator gave you a temporary password. Sign in and change it from the sidebar.', type: 'warning' });
+    return res.json({ message: 'Temporary password created. Share it with the user privately.', temporaryPassword: temp });
+  } catch (err) {
+    console.error('temporary password error:', err);
+    return res.status(500).json({ message: 'Failed to create a temporary password' });
   }
 });
 
