@@ -32,10 +32,13 @@ app.use('/api', (req, res, next) => { req.pool = pool; next(); });
 // ---------- public ----------
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.use('/api', require('./routes/login'));                       // POST /api/login
+app.use('/api', require('./routes/forgotPassword'));              // forgot and reset password
 
 // ---------- any signed-in user ----------
 app.use('/api/auth', requireAuth(), require('./routes/changePassword'));       // POST /api/auth/change-password
 app.use('/api/bookings', requireAuth(['lecturer']), require('./routes/bookings'));
+app.use('/api/my-allocations', requireAuth(['lecturer']), require('./routes/myAllocations'));
+app.use('/api/feedback', requireAuth(['lecturer']), require('./routes/feedback'));
 
 // ---------- administrators ----------
 app.use('/api/createnotifications', requireAuth(['admin']));
@@ -57,10 +60,11 @@ app.use('/api/admin', requireAuth(['admin']),
   require('./routes/adminUpdateUsers'),
   require('./routes/adminDeleteUser'),
   require('./routes/adminDeleteSubject'),
-  require('./routes/adminBookings'));
+  require('./routes/adminBookings'),
+  require('./routes/adminFeedback'));
 
 // ---------- timetable and notifications: every role, each sees their own ----------
-app.use('/api', requireAuth(), require('./routes/timetable'), require('./routes/notifications'));
+app.use('/api', requireAuth(), require('./routes/timetable'), require('./routes/notifications'), require('./routes/schedule'));
 
 app.use('/api', (req, res) => res.status(404).json({ message: 'Not found' }));
 app.use((err, req, res, next) => {
