@@ -76,8 +76,9 @@
                   <input type="number" id="students" min="1" required />
                 </div>
                 <div class="form-group">
-                  <label for="equipment">Required Equipment</label>
-                  <input type="text" id="equipment" placeholder="e.g. Projector, Whiteboard" />
+                  <label>Required Equipment</label>
+                  <div id="equipmentPicker"></div>
+                  <small class="hint">Projector and whiteboard are needed for every class.</small>
                 </div>
                 <button type="submit" class="btn btn-primary btn-block" id="btnFind"><i class="fas fa-search"></i> Find Suitable Halls</button>
               </form>
@@ -125,6 +126,7 @@
       let editingId = null;
       let draft = null;
       let subjects = [];
+      const picker = LHAS.equipmentPicker($('equipmentPicker'), []);
 
       const call = async (method, url, body) => {
         const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
@@ -148,7 +150,7 @@
       $('bookDate').value = defaultDate();
       $('classSelect').addEventListener('change', () => {
         const s = subjects.find(x => x.id === parseInt($('classSelect').value));
-        if (s) $('equipment').value = (s.required_equipment || []).join(', ');
+        if (s) picker.set(s.required_equipment || []);
       });
 
       const readForm = () => ({
@@ -158,7 +160,7 @@
         start_time: $('startTime').value,
         end_time: $('endTime').value,
         students: parseInt($('students').value) || 0,
-        equipment: $('equipment').value.split(',').map(x => x.trim()).filter(Boolean)
+        equipment: picker.get()
       });
 
       $('bookForm').addEventListener('submit', async e => {
@@ -205,6 +207,7 @@
       function clearForm() {
         editingId = null; draft = null;
         $('bookForm').reset();
+        picker.set([]);
         $('bookDate').value = defaultDate();
         $('formTitle').innerHTML = '<i class="fas fa-calendar-plus"></i> Request a Hall';
         $('submitRow').classList.add('hidden');
@@ -250,7 +253,7 @@
           $('startTime').value = String(b.start_time).slice(0, 5);
           $('endTime').value = String(b.end_time).slice(0, 5);
           $('students').value = b.students;
-          $('equipment').value = (b.equipment || []).join(', ');
+          picker.set(b.equipment || []);
           $('formTitle').innerHTML = '<i class="fas fa-pen"></i> Edit Request #' + b.id;
           $('hallArea').innerHTML = '<div class="empty-state"><p>Click Find Suitable Halls again to confirm the hall for the updated request.</p></div>';
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -260,8 +263,8 @@
           const b = btn.closest('tr')._booking;
           let reason = '';
           if (b.status === 'approved') {
-            reason = (prompt('Reason for cancelling this approved booking:') || '').trim();
-            if (!reason) { LHAS.showToast('A reason is required to cancel an approved booking', 'error'); return; }
+            reason = await LHAS.askReason({ title: 'Cancel this booking?', message: 'The hall is released and the administrator is told.', placeholder: 'Reason for cancelling', confirmText: 'Cancel booking' });
+            if (!reason) return;
           } else if (!confirm('Cancel this booking request?')) return;
           const r = await call('POST', `/api/bookings/${b.id}/cancel`, { reason });
           if (!r.ok) { LHAS.showToast(r.data.message || 'Could not cancel', 'error'); return; }
