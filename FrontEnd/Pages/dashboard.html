@@ -109,6 +109,13 @@
               <p>Pending Booking Requests</p>
             </div>
           </div>
+          <div class="stat-card">
+            <div class="stat-icon red"><i class="fas fa-comment-dots"></i></div>
+            <div class="stat-info">
+              <h3 id="statFeedback">0</h3>
+              <p>Open Hall Feedback</p>
+            </div>
+          </div>
         </div>
 
         <div class="grid-2">
@@ -214,6 +221,7 @@
       document.getElementById('statSubjects').textContent = stats.subjects;
       document.getElementById('statAvailable').textContent = stats.hallsStatus.filter(h => h.status === 'active').length;
       document.getElementById('statPending').textContent = stats.pendingBookings || 0;
+      document.getElementById('statFeedback').textContent = stats.openFeedback || 0;
 
       // Recent allocations
       const response = await fetch(`/api/timetable?email=${session.email}`)
