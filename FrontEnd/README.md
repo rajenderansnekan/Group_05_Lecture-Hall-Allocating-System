@@ -28,9 +28,9 @@ Professional frontend prototype for the **Lecturer Hall Allocation System** base
 
 | Role      | Email               | Password  |
 |-----------|---------------------|-----------|
-| Admin     | admin001@lhas.example  | 12345678 |
-| Lecturer  | lecturer001@lhas.example | EZzRpPO2TYAY |
-| Student   | student001@students.lhas.example |LlUetPbmH3Xd |
+| Admin     | admin@lhas.edu      | admin123  |
+| Lecturer  | lecturer@lhas.edu   | lect123   |
+| Student   | student@lhas.edu    | stud123   |
 
 No backend or server is required – this is a pure frontend demonstration with data stored in memory (JavaScript).
 
