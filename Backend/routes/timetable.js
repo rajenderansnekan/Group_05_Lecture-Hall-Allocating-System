@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-// Admin sees everything, a lecturer sees their own classes, a student sees confirmed classes of their department (FR-50 to FR-52).
-// The user comes from the sign-in token, not from the request.
+
 router.get('/timetable', async (req, res) => {
   try {
     const [users] = await req.pool.query('SELECT role, index_no, department FROM users WHERE id = ?', [req.user.id]);
