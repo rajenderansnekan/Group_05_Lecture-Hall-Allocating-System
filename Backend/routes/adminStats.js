@@ -11,7 +11,8 @@ router.get('/stats', async (req, res) => {
     const [lecturers] = await req.pool.query(`select count(*) as lecturers from users where role = ?`, ["lecturer"])
     const [subjects] = await req.pool.query(`select count(*) as subjects from subjects`)
     const [pendingBookings] = await req.pool.query(`select count(*) as pendingBookings from booking_requests where status = ?`, ["pending"])
-    return res.json({pendingBookings: pendingBookings[0].pendingBookings, hallsCount: hallsCount[0].hallsCount, hallsStatus, todayClasses: todayClasses[0].todayClasses, lecturers: lecturers[0].lecturers, subjects: subjects[0].subjects})
+    const [openFeedback] = await req.pool.query(`select count(*) as openFeedback from hall_feedback where status <> ?`, ["resolved"])
+    return res.json({openFeedback: openFeedback[0].openFeedback, pendingBookings: pendingBookings[0].pendingBookings, hallsCount: hallsCount[0].hallsCount, hallsStatus, todayClasses: todayClasses[0].todayClasses, lecturers: lecturers[0].lecturers, subjects: subjects[0].subjects})
   }
   catch (error) {
     console.error('Error fetching stats:', error);
