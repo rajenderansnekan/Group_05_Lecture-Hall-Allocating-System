@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-// FR-56, FR-58: a user sees their own notifications. Administrators also see the shared ones (no user).
+
 router.get('/notifications', async (req, res) => {
   try {
     const email = String(req.user.email).toLowerCase();
