@@ -39,4 +39,27 @@ router.get('/reports', async (req, res) => {
   }
 });
 
+// Allocation history for yesterday, today, tomorrow or a chosen range, used by the export buttons.
+const { colomboDate } = require('../lib/rules');
+router.get('/reports/allocations', async (req, res) => {
+  try {
+    const offsets = { yesterday: -1, today: 0, tomorrow: 1 };
+    let from, to;
+    if (offsets[req.query.range] !== undefined) from = to = colomboDate(offsets[req.query.range]);
+    else {
+      from = String(req.query.from || ''); to = String(req.query.to || from);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || to < from) {
+        return res.status(400).json({ message: 'Choose a valid date range.' });
+      }
+    }
+    const [rows] = await req.pool.query(
+      `SELECT id, date, start_time, end_time, hall, subject_code, subject, lecturer_name, department, batch_year, status, cancellation_reason
+         FROM allocations WHERE date BETWEEN ? AND ? ORDER BY date, start_time, hall`, [from, to]);
+    return res.json({ from, to, rows });
+  } catch (error) {
+    console.error('Error fetching allocation export:', error);
+    return res.status(500).json({ message: 'Failed to load allocation history' });
+  }
+});
+
 module.exports = router;
