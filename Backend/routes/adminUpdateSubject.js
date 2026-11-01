@@ -32,6 +32,10 @@ router.post('/updateSubject', async (req, res) => {
           : '[]');
 
 
+    const batchYear = s.batch_year === '' || s.batch_year === null || s.batch_year === undefined ? null : Number(s.batch_year);
+    if (batchYear !== null && ![1, 2, 3, 4].includes(batchYear)) {
+      return res.status(400).json({ message: 'Batch year must be 1, 2, 3 or 4' });
+    }
     let lecturer_id = null;
     if (s.lecturer_index) {
       const [lecturerRows] = await req.pool.query(
@@ -60,7 +64,7 @@ router.post('/updateSubject', async (req, res) => {
       const [result] = await req.pool.query(
         `UPDATE subjects
             SET subject_code = ?, subject_name = ?, department = ?,
-                lecturer_index = ?, lecturer_id = ?, required_equipment = ?
+                lecturer_index = ?, lecturer_id = ?, required_equipment = ?, batch_year = ?
           WHERE id = ?`,
         [
           s.subject_code,
@@ -69,6 +73,7 @@ router.post('/updateSubject', async (req, res) => {
           s.lecturer_index ?? null,
           lecturer_id,
           equipment,
+          batchYear,
           s.id
         ]
       );
@@ -98,15 +103,16 @@ router.post('/updateSubject', async (req, res) => {
 
     const [result] = await req.pool.query(
       `INSERT INTO subjects
-         (subject_code, subject_name, department, lecturer_index, lecturer_id, required_equipment)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+         (subject_code, subject_name, department, lecturer_index, lecturer_id, required_equipment, batch_year)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         s.subject_code,
         s.subject_name,
         s.department ?? null,
         s.lecturer_index ?? null,
         lecturer_id,
-        equipment
+        equipment,
+        batchYear
       ]
     );
 
