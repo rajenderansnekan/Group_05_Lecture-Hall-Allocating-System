@@ -41,6 +41,9 @@ router.post('/bookings/:id/approve', async (req, res) => {
         date: rules.normalizeDate(b.booking_date), start: rules.normalizeTime(b.start_time), end: rules.normalizeTime(b.end_time)
       };
 
+      const past = rules.checkNotPast(request.date, request.end);
+      if (past) { const e = new Error(`Approval blocked: ${past}`); e.status = 409; throw e; }
+
       // The lecturer's hall, or the best suitable hall when "any" was chosen
       let candidates;
       if (b.hall_id) candidates = [b.hall_id];
