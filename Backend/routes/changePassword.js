@@ -3,7 +3,7 @@ const router = express.Router();
 const { checkPassword, hashPassword, passwordProblems } = require('../lib/auth');
 const { notify } = require('../lib/allocations');
 
-// FR-41 to FR-43, BR-15, BR-16: a user can change only their own password (the user comes from the token)
+
 router.post('/change-password', async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body || {};
