@@ -137,8 +137,8 @@
           render();
         }));
         pb.querySelectorAll('[data-reject]').forEach(btn => btn.addEventListener('click', async () => {
-          const reason = (prompt('Reason for rejecting this request (required):') || '').trim();
-          if (!reason) { LHAS.showToast('A reason is required to reject a request', 'error'); return; }
+          const reason = await LHAS.askReason({ title: 'Reject this request?', message: 'The lecturer sees your reason.', placeholder: 'Reason for rejecting', confirmText: 'Reject request' });
+          if (!reason) return;
           const r = await post(`/api/admin/bookings/${btn.dataset.reject}/reject`, { reason });
           LHAS.showToast(r.data.message || (r.ok ? 'Rejected' : 'Could not reject'), r.ok ? 'success' : 'error');
           render();
