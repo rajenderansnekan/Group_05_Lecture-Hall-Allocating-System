@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { validateAllocation, checkSlot, normalizeDate, normalizeTime, parseEquipment } = require('../lib/rules');
+const { validateAllocation, checkSlot, checkNotPast, normalizeDate, normalizeTime, parseEquipment } = require('../lib/rules');
 const { createAllocation, subjectInfo, notify, withAllocationLock } = require('../lib/allocations');
 
 // Create an allocation, confirm a pending one, or cancel one.
@@ -25,6 +25,8 @@ router.post('/updateAllocations', async (req, res) => {
         await req.pool.query('UPDATE allocations SET status = ?, cancellation_reason = ? WHERE id = ?',
           ['cancelled', reason.slice(0, 255), a.id]);
       } else if (next === 'confirmed' && current.status !== 'confirmed') {
+        const past = checkNotPast(normalizeDate(current.date), normalizeTime(current.end_time));
+        if (past) return res.status(400).json({ message: past });
         await withAllocationLock(req.pool, async () => {
           const check = await validateAllocation(req.pool, {
             subjectId: current.subject_id, students: 1, equipment: [],
@@ -59,6 +61,8 @@ router.post('/updateAllocations', async (req, res) => {
     };
     const slotError = checkSlot(request);
     if (slotError) return res.status(400).json({ message: slotError });
+    const pastError = checkNotPast(request.date, request.end);
+    if (pastError) return res.status(400).json({ message: pastError });
     if (!(await subjectInfo(req.pool, request.subjectId))) return res.status(404).json({ message: 'Subject not found' });
 
     let hallId = Number(a.hall_id);
