@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hall Feedback – LHAS</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="../js/app.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header"><div class="sidebar-logo"><i class="fas fa-university"></i><span>LHAS</span></div></div>
+      <nav class="sidebar-nav" id="navHost"></nav>
+      <script>{ const s = LHAS.getSession(); if (s) document.getElementById('navHost').innerHTML = LHAS.navFor(s.role, 'hall-feedback.html'); }</script>
+      <div class="sidebar-footer"><div class="user-info"><div class="user-avatar"></div><div class="user-meta"><div class="name"></div><div class="role"></div></div></div></div>
+    </aside>
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <h1 class="page-title">Hall Feedback</h1>
+        </div>
+        <div class="topbar-right"><button class="icon-btn" title="Notifications"><i class="fas fa-bell"></i></button></div>
+      </header>
+      <main class="content-area">
+        <!-- Lecturer view -->
+        <div id="lecturerView" hidden>
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-header"><h2><i class="fas fa-comment-dots"></i> Report a hall problem</h2></div>
+              <div class="card-body">
+                <form id="fbForm" novalidate>
+                  <div class="form-group"><label for="fbHall">Hall *</label><select id="fbHall"><option value="">Choose a hall</option></select></div>
+                  <div class="form-group"><label for="fbCategory">What is the problem about? *</label><select id="fbCategory"><option value="">Choose one</option></select></div>
+                  <div class="form-group"><label for="fbSeverity">How serious is it?</label>
+                    <select id="fbSeverity"><option value="low">Low: it can wait</option><option value="medium" selected>Medium: it affects teaching</option><option value="high">High: the hall is hard to use</option></select>
+                  </div>
+                  <div class="form-group"><label for="fbMessage">Details *</label><textarea id="fbMessage" rows="4" maxlength="500" placeholder="What did you notice, and where in the hall?"></textarea>
+                    <small class="hint"><span id="fbCount">0</span> / 500</small></div>
+                  <button class="btn btn-primary btn-block" type="submit" id="fbSend"><i class="fas fa-paper-plane"></i> Send to administrator</button>
+                </form>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><h2>How it works</h2></div>
+              <div class="card-body">
+                <p class="text-muted" style="margin-bottom:.75rem;">Your report goes straight to the administrator. You get a notification when it is being handled or resolved, with any reply from the administrator.</p>
+                <p class="text-muted">If a hall is put under maintenance, lecturers who have classes there are told so they can plan another hall.</p>
+              </div>
+            </div>
+          </div>
+          <div class="card mt-2">
+            <div class="card-header"><h2>My reports</h2></div>
+            <div class="card-body"><div class="table-responsive"><table>
+              <thead><tr><th>Date</th><th>Hall</th><th>Problem</th><th>Severity</th><th>Status</th><th>Administrator reply</th></tr></thead>
+              <tbody id="myReports"></tbody></table></div></div>
+          </div>
+        </div>
+
+        <!-- Administrator view -->
+        <div id="adminView" hidden>
+          <div class="stats-grid" id="fbStats"></div>
+          <div class="filters">
+            <div class="form-group"><label for="aStatus">Status</label>
+              <select id="aStatus"><option value="active">Open and in progress</option><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="">All</option></select></div>
+            <div class="form-group"><label for="aHall">Hall</label><select id="aHall"><option value="">All halls</option></select></div>
+          </div>
+          <div class="card"><div class="card-header"><h2>Hall feedback from lecturers</h2></div>
+            <div class="card-body"><div class="table-responsive"><table>
+              <thead><tr><th>Date</th><th>Hall</th><th>Lecturer</th><th>Problem</th><th>Severity</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody id="adminReports"></tbody></table></div></div>
+          </div>
+
+          <dialog id="fbDialog" class="modal-dialog">
+            <form method="dialog" id="fbUpdate" novalidate>
+              <div class="modal-header"><h3 id="fbDialogTitle">Update feedback</h3><button type="button" class="modal-close" data-close aria-label="Close">&times;</button></div>
+              <div class="modal-body">
+                <p id="fbDialogText" class="text-muted" style="margin-bottom:.75rem;"></p>
+                <div class="form-group"><label for="uStatus">Status</label>
+                  <select id="uStatus"><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></div>
+                <div class="form-group"><label for="uHall">Hall state</label>
+                  <select id="uHall"><option value="">Leave as it is</option><option value="maintenance">Put under maintenance (blocks new allocations)</option><option value="active">Mark as active again</option></select></div>
+                <div class="form-group"><label for="uResponse">Reply to the lecturer</label><textarea id="uResponse" rows="3" maxlength="500" placeholder="What will be done, and when?"></textarea></div>
+              </div>
+              <div class="modal-footer"><button type="button" class="btn btn-secondary" data-close>Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
+            </form>
+          </dialog>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const session = LHAS.requireAuth(['lecturer', 'admin']);
+      if (!session) return;
+      LHAS.initLayout(session);
+      const $ = id => document.getElementById(id);
+      const esc = LHAS.esc;
+      const fmt = d => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      const label = s => ({ open: 'Open', in_progress: 'In progress', resolved: 'Resolved' }[s] || s);
+      const statusBadge = s => `<span class="status status-${s}">${label(s)}</span>`;
+      const sevBadge = s => `<span class="sev sev-${s}">${esc(s)}</span>`;
+      const json = async (url, opt) => { const r = await fetch(url, opt); return { ok: r.ok, data: await r.json().catch(() => ({})) }; };
+
+      if (session.role === 'lecturer') {
+        $('lecturerView').hidden = false;
+        const opts = await json('/api/feedback/options');
+        opts.data.halls.forEach(h => $('fbHall').insertAdjacentHTML('beforeend', `<option value="${h.id}">${esc(h.name)}</option>`));
+        opts.data.categories.forEach(c => $('fbCategory').insertAdjacentHTML('beforeend', `<option>${esc(c)}</option>`));
+        $('fbMessage').addEventListener('input', () => { $('fbCount').textContent = $('fbMessage').value.length; });
+
+        const loadMine = async () => {
+          const r = await json('/api/feedback');
+          const rows = r.ok ? r.data : [];
+          $('myReports').innerHTML = rows.length ? rows.map(f => `
+            <tr><td>${fmt(f.created_at)}</td><td>${esc(f.hall_name)}</td>
+            <td><strong>${esc(f.category)}</strong><br><span class="text-muted" style="font-size:.78rem">${esc(f.message)}</span></td>
+            <td>${sevBadge(f.severity)}</td><td>${statusBadge(f.status)}</td><td>${esc(f.admin_response) || '—'}</td></tr>`).join('')
+            : '<tr><td colspan="6"><div class="empty-state"><p>You have not reported anything yet.</p></div></td></tr>';
+        };
+        $('fbForm').addEventListener('submit', async e => {
+          e.preventDefault();
+          if (!$('fbHall').value || !$('fbCategory').value) { LHAS.showToast('Choose the hall and the type of problem', 'error'); return; }
+          $('fbSend').disabled = true;
+          const r = await json('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hall_id: Number($('fbHall').value), category: $('fbCategory').value, severity: $('fbSeverity').value, message: $('fbMessage').value }) });
+          $('fbSend').disabled = false;
+          LHAS.showToast(r.data.message || (r.ok ? 'Sent' : 'Could not send'), r.ok ? 'success' : 'error');
+          if (r.ok) { $('fbForm').reset(); $('fbCount').textContent = '0'; loadMine(); }
+        });
+        loadMine();
+        return;
+      }
+
+      // ---------- administrator ----------
+      $('adminView').hidden = false;
+      let all = [];
+      let editing = null;
+      const dlg = $('fbDialog');
+      dlg.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => dlg.close()));
+
+      async function load() {
+        const r = await json('/api/admin/feedback');
+        all = r.ok ? r.data : [];
+        const halls = [...new Set(all.map(f => f.hall_name))].sort();
+        const current = $('aHall').value;
+        $('aHall').innerHTML = '<option value="">All halls</option>' + halls.map(h => `<option>${esc(h)}</option>`).join('');
+        $('aHall').value = current;
+        const n = s => all.filter(f => f.status === s).length;
+        $('fbStats').innerHTML = [['Open', n('open'), 'red', 'exclamation-circle'], ['In progress', n('in_progress'), 'blue', 'tools'], ['Resolved', n('resolved'), 'green', 'check-circle']]
+          .map(([t, c, col, ic]) => `<div class="stat-card"><div class="stat-icon ${col}"><i class="fas fa-${ic}"></i></div><div class="stat-info"><h3>${c}</h3><p>${t}</p></div></div>`).join('');
+        render();
+      }
+      function render() {
+        const st = $('aStatus').value, hall = $('aHall').value;
+        const rows = all.filter(f => (!hall || f.hall_name === hall) && (st === '' || (st === 'active' ? f.status !== 'resolved' : f.status === st)));
+        $('adminReports').innerHTML = rows.length ? rows.map(f => `
+          <tr><td>${fmt(f.created_at)}</td>
+          <td><strong>${esc(f.hall_name)}</strong><br>${f.hall_status !== 'active' ? `<span class="status status-${f.hall_status}">${esc(f.hall_status)}</span>` : ''}</td>
+          <td>${esc(f.reporter_name)}</td>
+          <td><strong>${esc(f.category)}</strong><br><span class="text-muted" style="font-size:.78rem">${esc(f.message)}</span>${f.admin_response ? `<br><span style="font-size:.78rem">Reply: ${esc(f.admin_response)}</span>` : ''}</td>
+          <td>${sevBadge(f.severity)}</td><td>${statusBadge(f.status)}</td>
+          <td><button class="btn btn-sm btn-outline" data-update="${f.id}"><i class="fas fa-pen"></i> Update</button></td></tr>`).join('')
+          : '<tr><td colspan="7"><div class="empty-state"><p>No feedback matches these filters.</p></div></td></tr>';
+        $('adminReports').querySelectorAll('[data-update]').forEach(b => b.addEventListener('click', () => {
+          editing = all.find(f => f.id === Number(b.dataset.update));
+          $('fbDialogTitle').textContent = `${editing.hall_name}: ${editing.category}`;
+          $('fbDialogText').textContent = `${editing.reporter_name} wrote: ${editing.message}`;
+          $('uStatus').value = editing.status; $('uHall').value = ''; $('uResponse').value = editing.admin_response || '';
+          dlg.showModal();
+        }));
+      }
+      $('aStatus').addEventListener('change', render);
+      $('aHall').addEventListener('change', render);
+      $('fbUpdate').addEventListener('submit', async e => {
+        e.preventDefault();
+        const r = await json(`/api/admin/feedback/${editing.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: $('uStatus').value, response: $('uResponse').value, hall_status: $('uHall').value }) });
+        LHAS.showToast(r.data.message || (r.ok ? 'Saved' : 'Could not save'), r.ok ? 'success' : 'error');
+        if (r.ok) { dlg.close(); load(); }
+      });
+      load();
+    });
+  </script>
+</body>
+</html>
