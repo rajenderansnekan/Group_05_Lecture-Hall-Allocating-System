@@ -45,23 +45,36 @@
       </header>
 
       <main class="content-area">
-        <div class="alert alert-info mb-2">
-          <i class="fas fa-info-circle"></i> Showing approved allocations for your classes. You will be notified when halls are changed.
+        <div class="filters">
+          <div class="form-group">
+            <label for="fBatch">Batch year</label>
+            <select id="fBatch">
+              <option value="">All batches</option>
+              <option value="1">Year 1</option>
+              <option value="2">Year 2</option>
+              <option value="3">Year 3</option>
+              <option value="4">Year 4</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="fShow">Show</label>
+            <select id="fShow">
+              <option value="upcoming">Upcoming classes</option>
+              <option value="past">Past classes</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="all">Everything</option>
+            </select>
+          </div>
+          <button class="btn btn-outline" id="fClear" type="button"><i class="fas fa-times"></i> Clear filters</button>
         </div>
 
         <div class="card">
-          <div class="card-header"><h2>Upcoming Classes</h2></div>
+          <div class="card-header"><h2 id="ttTitle">Upcoming Classes</h2></div>
           <div class="card-body">
             <div class="table-responsive">
               <table>
                 <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Time</th>
-                    <th>Subject</th>
-                    <th>Hall</th>
-                    <th>Status</th>
-                  </tr>
+                  <tr><th>Date</th><th>Time</th><th>Subject</th><th>Batch</th><th>Hall</th><th>Status</th><th>Action</th></tr>
                 </thead>
                 <tbody id="myTT"></tbody>
               </table>
@@ -79,35 +92,78 @@
       if (!session) return;
       LHAS.initLayout(session);
 
-      const response = await fetch(
-        `/api/timetable?email=${encodeURIComponent(session.email)}`
-      );
+      const $ = id => document.getElementById(id);
+      const esc = LHAS.esc;
+      const pad = n => String(n).padStart(2, '0');
+      const today = (() => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; })();
+      const fmtDate = d => String(d).slice(0, 10).split('-').reverse().join('/');
+      let all = [];
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch timetable');
+      async function load() {
+        const res = await fetch('/api/timetable');
+        if (!res.ok) { LHAS.showToast('Failed to load your timetable', 'error'); return; }
+        all = await res.json();
+        render();
       }
 
-      const allocations = await response.json();
+      const isFinished = a => { const d = String(a.date).slice(0, 10); return d < today; };
 
-      const tbody = document.getElementById('myTT');
-      if (!allocations.length) {
-        tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>No upcoming classes scheduled.</p></div></td></tr>';
-        return;
+      function render() {
+        const batch = $('fBatch').value;
+        const show = $('fShow').value;
+        const titles = { upcoming: 'Upcoming Classes', past: 'Past Classes', cancelled: 'Cancelled Classes', all: 'All Classes' };
+        $('ttTitle').textContent = titles[show];
+
+        const rows = all.filter(a => {
+          if (batch && String(a.batch_year) !== batch) return false;
+          if (show === 'upcoming') return a.status !== 'cancelled' && !isFinished(a);
+          if (show === 'past') return a.status !== 'cancelled' && isFinished(a);
+          if (show === 'cancelled') return a.status === 'cancelled';
+          return true;
+        }).sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.start_time).localeCompare(String(b.start_time)));
+        if (show === 'past' || show === 'cancelled') rows.reverse();
+
+        const tbody = $('myTT');
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>No classes match these filters.</p></div></td></tr>';
+          return;
+        }
+        tbody.innerHTML = '';
+        rows.forEach(a => {
+          const canCancel = a.status !== 'cancelled' && !isFinished(a);
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${fmtDate(a.date)}</td>
+            <td>${String(a.start_time).slice(0, 5)} - ${String(a.end_time).slice(0, 5)}</td>
+            <td><strong>${esc(a.subject_code)}</strong><br><span class="text-muted" style="font-size:.78rem">${esc(a.subject)}</span></td>
+            <td>${a.batch_year ? 'Year ' + a.batch_year : '—'}</td>
+            <td>${esc(a.hall) || '—'}</td>
+            <td><span class="status status-${a.status === 'cancelled' ? 'cancelled' : a.status === 'pending' ? 'pending' : 'confirmed'}">${esc(a.status)}</span>${a.status === 'cancelled' && a.cancellation_reason ? `<br><span class="text-muted" style="font-size:.75rem">${esc(a.cancellation_reason)}</span>` : ''}</td>
+            <td>${canCancel ? `<button class="btn btn-sm btn-outline" data-cancel="${a.id}"><i class="fas fa-ban"></i> Cancel hall</button>` : '—'}</td>`;
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll('[data-cancel]').forEach(btn => btn.addEventListener('click', async () => {
+          const reason = await LHAS.askReason({
+            title: 'Cancel this hall?',
+            message: 'The hall is released for other classes and the administrator is told.',
+            placeholder: 'Why are you cancelling?',
+            confirmText: 'Cancel hall'
+          });
+          if (!reason) return;
+          const res = await fetch(`/api/my-allocations/${btn.dataset.cancel}/cancel`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason })
+          });
+          const data = await res.json().catch(() => ({}));
+          LHAS.showToast(data.message || (res.ok ? 'Cancelled' : 'Could not cancel'), res.ok ? 'success' : 'error');
+          if (res.ok) load();
+        }));
       }
 
-      allocations.forEach(a => {
-
-        const tr = document.createElement('tr');
-
-        tr.innerHTML = `
-          <td>${a.date ? String(a.date).slice(0, 10).split('-').reverse().join('/') : '—'}</td>
-          <td>${a.start_time.slice(0, 5)} - ${a.end_time.slice(0, 5)}</td>
-          <td>${LHAS.esc(a.subject)}</td>
-          <td>${a.hall || '—'}</td>
-          <td>${a.status}</td>
-        `;
-        tbody.appendChild(tr);
-      });
+      $('fBatch').addEventListener('change', render);
+      $('fShow').addEventListener('change', render);
+      $('fClear').addEventListener('click', () => { $('fBatch').value = ''; $('fShow').value = 'upcoming'; render(); });
+      load();
     });
   </script>
 </body>
