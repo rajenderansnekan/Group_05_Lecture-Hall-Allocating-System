@@ -20,7 +20,7 @@ async function ownedSubject(pool, userId, subjectId) {
   return rows[0] || null;
 }
 
-// FR-46, FR-48, BR-11, BR-13: the same checks run for the hall list, for a new request and for an edit.
+
 async function checkBooking(pool, user, body, { ignoreBookingId = 0 } = {}) {
   const request = {
     subjectId: Number(body.subject_id),
@@ -56,7 +56,7 @@ async function checkBooking(pool, user, body, { ignoreBookingId = 0 } = {}) {
   return { request, subject, halls, suitable };
 }
 
-// Halls that fit a draft request (FR-47)
+
 router.post('/suggest', async (req, res) => {
   try {
     const out = await checkBooking(req.pool, req.user, req.body || {}, { ignoreBookingId: Number((req.body || {}).booking_id) || 0 });
@@ -68,7 +68,7 @@ router.post('/suggest', async (req, res) => {
   }
 });
 
-// The lecturer's own classes
+
 router.get('/my-subjects', async (req, res) => {
   try {
     const [rows] = await req.pool.query(
@@ -82,7 +82,7 @@ router.get('/my-subjects', async (req, res) => {
   }
 });
 
-// FR-52: my bookings
+
 router.get('/', async (req, res) => {
   try {
     const [rows] = await req.pool.query(`${SQL_BOOKING} WHERE b.requested_by = ? ORDER BY b.id DESC`, [req.user.id]);
@@ -101,7 +101,7 @@ async function save(req, res, editingId) {
     if (out.error) return res.status(out.error.status).json({ message: out.error.message });
     const { request, subject, suitable } = out;
 
-    // FR-33: refuse when no hall can serve the slot
+    
     if (!suitable.length) {
       return res.status(409).json({ message: 'No suitable hall is free for this time. Try a different time.' });
     }
@@ -132,7 +132,7 @@ async function save(req, res, editingId) {
       [request.subjectId, req.user.id, hallId, request.date, request.start, request.end,
        request.students, JSON.stringify(request.equipment), purpose]);
 
-    // FR-55: tell the administrators
+    
     await notify(req.pool, {
       message: `New booking request for ${subject.subject_code} on ${request.date}, ${request.start}-${request.end}.`,
       type: 'info'
@@ -146,7 +146,7 @@ async function save(req, res, editingId) {
 router.post('/', (req, res) => save(req, res, 0));
 router.put('/:id', (req, res) => save(req, res, Number(req.params.id)));
 
-// FR-53: cancel (an approved booking needs a reason and also cancels its allocation)
+
 router.post('/:id/cancel', async (req, res) => {
   try {
     const id = Number(req.params.id);
