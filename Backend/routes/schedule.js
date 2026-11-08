@@ -4,7 +4,7 @@ const { colomboDate } = require('../lib/rules');
 
 const DAYS = { yesterday: -1, today: 0, tomorrow: 1 };
 
-// Yesterday, today or tomorrow, for every batch and department. Open to lecturers and students.
+
 router.get('/schedule', async (req, res) => {
   try {
     const key = DAYS[req.query.day] === undefined ? 'today' : req.query.day;
