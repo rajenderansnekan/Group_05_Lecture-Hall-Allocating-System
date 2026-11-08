@@ -15,7 +15,7 @@ const SQL = `
     LEFT JOIN users u ON u.id = b.requested_by
     LEFT JOIN users r ON r.id = b.reviewed_by`;
 
-// FR-50
+
 router.get('/bookings', async (req, res) => {
   try {
     const [rows] = await req.pool.query(`${SQL} ORDER BY FIELD(b.status, 'pending') DESC, b.booking_date, b.start_time`);
@@ -26,7 +26,7 @@ router.get('/bookings', async (req, res) => {
   }
 });
 
-// FR-51: every hard constraint is checked again, then the allocation is created
+
 router.post('/bookings/:id/approve', async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -44,7 +44,7 @@ router.post('/bookings/:id/approve', async (req, res) => {
       const past = rules.checkNotPast(request.date, request.end);
       if (past) { const e = new Error(`Approval blocked: ${past}`); e.status = 409; throw e; }
 
-      // The lecturer's hall, or the best suitable hall when "any" was chosen
+      
       let candidates;
       if (b.hall_id) candidates = [b.hall_id];
       else candidates = (await rules.evaluateHalls(req.pool, request)).filter(h => h.score < 9999).map(h => h.hall.id);
@@ -80,7 +80,7 @@ router.post('/bookings/:id/approve', async (req, res) => {
   }
 });
 
-// FR-50: a rejection needs a reason (BR-14)
+
 router.post('/bookings/:id/reject', async (req, res) => {
   try {
     const id = Number(req.params.id);
