@@ -121,7 +121,6 @@
         tableBody.appendChild(row);
       }
 
-      // Format YYYY-MM-DD as 26 Oct 2026.
       function formatDate(value) {
         if (!value) return '—';
 
@@ -142,7 +141,6 @@
         });
       }
 
-      // Format a MySQL TIME value as 9:30 AM.
       function formatSingleTime(value) {
         if (!value) return '';
 
@@ -164,7 +162,6 @@
         });
       }
 
-      // Show start and end times together.
       function formatTime(start, end) {
         const startTime = formatSingleTime(start);
         const endTime = formatSingleTime(end);
