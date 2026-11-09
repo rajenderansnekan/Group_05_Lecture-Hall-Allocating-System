@@ -125,7 +125,6 @@
 
     LHAS.initLayout(session);
 
-    // ---------- export allocation history (yesterday, today, tomorrow or chosen dates) ----------
     (() => {
       const $ = id => document.getElementById(id);
       const toCsvCell = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
@@ -368,7 +367,6 @@
         align: 'right'
       });
 
-      // Report information
       doc.setTextColor(45, 55, 72);
       doc.setFontSize(9);
 
@@ -392,12 +390,10 @@
       doc.setFont('helvetica', 'normal');
       doc.text('All recorded allocations', pageWidth / 2 + 35, 55);
 
-      // Divider
       doc.setDrawColor(210, 218, 228);
       doc.setLineWidth(0.4);
       doc.line(margin, 61, pageWidth - margin, 61);
 
-      // Summary section
       doc.setTextColor(30, 58, 95);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
@@ -441,7 +437,6 @@
         doc.text(card.value, x + 3, summaryY + 17);
       });
 
-      // Hall details heading
       doc.setTextColor(30, 58, 95);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
@@ -456,7 +451,6 @@
         114
       );
 
-      // Report table
       doc.autoTable({
         startY: 119,
         margin: {
@@ -508,7 +502,6 @@
           4: { cellWidth: 25, halign: 'center' }
         },
         didDrawPage: () => {
-          // Repeated header on subsequent pages
           if (doc.internal.getNumberOfPages() > 1) {
             doc.setFillColor(30, 58, 95);
             doc.rect(0, 0, pageWidth, 17, 'F');
@@ -521,7 +514,6 @@
         }
       });
 
-      // Footer on every page
       const pageCount = doc.internal.getNumberOfPages();
 
       for (let page = 1; page <= pageCount; page++) {
