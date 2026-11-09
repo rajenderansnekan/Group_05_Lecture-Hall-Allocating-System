@@ -89,7 +89,6 @@
     </div>
   </div>
 
-  <!-- Add / Edit Modal -->
   <div class="modal-overlay" id="hallModal">
     <div class="modal">
       <div class="modal-header">
@@ -174,7 +173,6 @@
           tbody.appendChild(tr);
         });
 
-        // Bind edit / deactivate
         tbody.querySelectorAll('[data-edit]').forEach(btn => {
           btn.addEventListener('click', () => openEdit(parseInt(btn.dataset.edit)));
         });
@@ -190,8 +188,7 @@
         document.getElementById('modalTitle').textContent = 'Edit Lecture Hall';
         document.getElementById('hallName').value = hall.name;
         document.getElementById('hallCapacity').value = hall.capacity;
-        document.getElementById('hallEquipment').value =
-  Array.isArray(hall.equipment) ? hall.equipment.join(', ') : hall.equipment || '';
+        document.getElementById('hallEquipment').value = Array.isArray(hall.equipment) ? hall.equipment.join(', ') : hall.equipment || '';
         document.getElementById('hallStatus').value = hall.status;
         document.getElementById('hallModal').classList.add('show');
       }
@@ -223,7 +220,6 @@
           return;
         }
 
-        // Duplicate code check
         const exists = halls.find(h =>
           h.name.trim().toLowerCase() === name.toLowerCase() &&
           Number(h.id) !== Number(editingId)
